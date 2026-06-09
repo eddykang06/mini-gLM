@@ -1,4 +1,4 @@
-# mini-gLM
+# mini-gLM: A lightweight genomic language model
 ## [In progress]
 
 ## Overview
