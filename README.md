@@ -13,5 +13,6 @@ mini-gLM uses byte-pair encoding (BPE) to tokenize DNA sequences, followed by a 
 
 ## Pre-trained weights
 
-
 ## Setup
+
+## Fine-tuning
