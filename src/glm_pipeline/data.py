@@ -1,0 +1,88 @@
+"""Functions to configure pre-training and fine-tuning data"""
+
+import numpy as np
+import pandas as pd
+from pyfaidx import Fasta
+from pathlib import Path
+
+
+def sample_from_fasta(
+        fasta_file: str | Path,
+        chrom_size_file: str | Path,
+        n_seqs: int,
+        min_length: int,
+        max_length: int,
+        seed: int | None = None
+) -> list:
+    """
+    Function to sample random sequences of a specified length range from .fa file, weigthed by chromsome length
+
+    Args:
+        fasta_file      : Path to .fa file containing genome
+        chrom_size_file : Path to tab-separate text file containing sequence names and sizes
+        n_seqs          : Number of sequences to sample
+        min_length      : Minimum sequence length to sample
+        max_length      : Maximum sequence length to sample
+        seed            : Random seed for numpy
+    
+    Returns:
+        seqs : List of sampled sequences as strings
+    """
+    # Set random seed if specified
+    rng = np.random.default_rng(seed)
+
+    # Store file using pyfaidx
+    f = Fasta(fasta_file)
+
+    # Load the chromosome and sort
+    size_df = pd.read_table(chrom_size_file, sep = "\t", index_col = 0, header = None)
+    size_df.columns = ["length"]
+    size_df["length"] = size_df["length"].astype(int)
+    size_df = size_df.iloc[size_df.index.argsort()]
+
+    # Check that the fasta chromsomes match the size df
+    index = sorted(size_df.index.to_numpy())
+    chromosomes = sorted(np.array(list(f.keys())))
+
+    if index != chromosomes:
+        raise KeyError("Fasta chromosomes IDs and length data IDs are incompatible")
+
+    # Normalize to obtain sampling weights for each chromosome
+    weights = size_df["length"].to_numpy() / size_df["length"].to_numpy().sum()
+
+    # Initiate list to store sequences
+    seqs = []
+
+    # Counter so that rejected sequences don't count toward total count
+    counter = 0
+
+    # Number of sequences to sample
+    while counter < n_seqs:
+
+        # Weighted sampling of chromosome
+        chrom = rng.choice(chromosomes, p = weights)
+        length = int(size_df.loc[chrom, "length"])
+
+        # Randomly sample a sequence
+        start_idx = rng.integers(0, length)
+        seq_length = rng.integers(min_length, max_length + 1)
+
+        # If the sampled sequence is out of range
+        if start_idx + seq_length > length:
+            continue
+        
+        seq = f[chrom][start_idx:start_idx + seq_length]
+        seq = str(seq)
+
+        # Split across "N" character if exists and take first substr
+        seq = seq.split("N")[0]
+
+        # Convert to uppercase, remove non-alpha and non-ACGT characters 
+        seq = "".join(char.strip().upper() for char in seq if char.isalpha() and char in "ACGTacgt")
+
+        # Check that sequences is still above minimum length
+        if len(seq) >= min_length:
+            counter += 1 
+            seqs.append(seq)
+
+    return seqs
