@@ -85,4 +85,6 @@ def sample_from_fasta(
             counter += 1 
             seqs.append(seq)
 
+    seqs = np.array(seqs)
+
     return seqs
