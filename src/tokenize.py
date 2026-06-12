@@ -136,3 +136,84 @@ def tokenize_sequences(
     
     return tokenized_sequences
 
+
+class BPE_Tokenizer():
+    """
+    Tokenizer class to enable tokenizer training and tokenization of unseen sequences
+    """
+    def __init__(self):
+        self.vocab = None
+        self.vocab_size = None
+        self.merge_rules = None
+        self.token_to_idx = None
+        self.idx_to_token = None
+    
+    # Train a tokenizer on a given corpus of DNA sequences
+    def train(
+        self, 
+        sequence_list: list[str], 
+        final_vocab_size: int
+    ):
+
+        vocab, merge_rules = train_bpe_tokenizer(
+            sequence_list = sequence_list,
+            final_vocab_size = final_vocab_size,
+        )
+
+        # Create vector of token IDs
+        idx = list(range(len(vocab)))
+
+        # Update vocab, merge rules, and token ID mapping
+        self.vocab = vocab
+        self.vocab_size = len(self.vocab)
+        self.merge_rules = merge_rules
+        self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
+        self.idx_to_token = {id: token for id, token in zip(idx, vocab)}
+        
+        print(f"BPE tokenizer training done!")
+    
+    # Tokenize a new list of sequences into a token IDs
+    def tokenize(
+        self, 
+        sequence_list: list[str]
+    ) -> list[list]:
+
+        tokenized = tokenize_sequences(
+            sequence_list = sequence_list,
+            merge_rules = self.merge_rules,
+            token_to_idx = self.token_to_idx
+        ) 
+
+        return tokenized
+
+    # Train a tokenizer and apply the tokenizer to the same corpus
+    def train_tokenize(
+        self, 
+        sequence_list: list[str], 
+        final_vocab_size: int
+    ):
+        # Train tokenizer on list of sequences
+        vocab, merge_rules = train_bpe_tokenizer(
+            sequence_list = sequence_list,
+            final_vocab_size = final_vocab_size,
+        )
+
+        # Create vector of token IDs
+        idx = list(range(len(vocab)))
+
+        # Update vocab, merge rules, and token ID mapping
+        self.vocab = vocab
+        self.vocab_size = len(self.vocab)
+
+        self.merge_rules = merge_rules
+        self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
+        self.idx_to_token = {id: token for id, token in zip(idx, vocab)}
+
+        # Tokenize the same sequences
+        tokenized = tokenize_sequences(
+            sequence_list = sequence_list,
+            merge_rules = self.merge_rules,
+            token_to_idx = self.token_to_idx
+        ) 
+
+        return tokenized
