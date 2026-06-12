@@ -28,7 +28,7 @@ def merge_token_pairs(
         token_pair: tuple
 ) -> list:
     """
-    Given a list of tokens and a tuple of token pairs, return a list where all instances of the adjacent token pair have been merged
+    Given a list of tokens and a token pair tuple, return a list where all instances of the adjacent token pair have been merged
 
     Ex: ["A", "C", "G", "T"], ("A", "C") -> ["AC", "G", "T"]
     """
@@ -51,11 +51,20 @@ def merge_token_pairs(
 
 def train_bpe_tokenizer(
         sequence_list: list[str], 
-        final_vocab_size: int, 
-        seed = None
+        final_vocab_size: int
 ) -> tuple[list[str], dict[tuple, str]]:
+    """
+    Train a BPE tokenizer on a list of sequences with a specified final vocab size
+
+    Args:
+        sequence_list    : List of sequences as strings 
+        final_vocab_size : Desired final vocab size
+        
+    Returns:
+        vocab       : List of tokens
+        merge_rules : Dictionary mapping token pairs to new merged tokens in training order
+    """
     
-    rng = np.random.default_rng(seed)
     merge_rules = {}
 
     # Pre-tokenization of sequences is done with simple initial vocabulary
@@ -75,19 +84,11 @@ def train_bpe_tokenizer(
             for pair, count in pair_counts_seq.items():
                 pair_counts_all[pair] = pair_counts_all.get(pair, 0) + count
 
-        # Store pairs and counts and find most frequent
+        # Store token pairs + counts and find most frequent adjacent tokens
         pairs = list(pair_counts_all.keys())
         counts = np.array(list(pair_counts_all.values()))
-        best_idx = np.argwhere(counts == counts.max()).ravel()
-
-        # If multiple pairs are found, then randomly select one
-        if len(best_idx) > 1:
-            random_idx = rng.choice(best_idx)
-            best_pair = pairs[random_idx]
-        
-        else:
-            best_idx = best_idx[0]
-            best_pair = pairs[best_idx]
+        best_idx = np.argmax(counts)
+        best_pair = pairs[best_idx]
         
         # Join all instances of pair in corpus and add token
         split_corpus = [merge_token_pairs(seq, best_pair) for seq in split_corpus]
@@ -103,8 +104,35 @@ def train_bpe_tokenizer(
     return vocab, merge_rules
 
 
-# Add function to perform tokenization using a learned vocab
+def tokenize_sequences(
+    sequence_list : list[str],
+    merge_rules: dict[tuple: str],
+    token_to_idx: dict[str: int]
+) -> list[list]:  
+    """
+    Convert a list of sequences to tokens using specified merge rules and token-ID mapping
+    
+    Args:
+        sequence_list : List of sequnces as string
+        merge_rules   : Dictionary mapping token tuples to new merged tokens
+        token_to_idx  : Dictionary mapping tokens to integer IDs
+    
+    Returns:
+        tokenized_sequences : List of tokenized sequences as lists of integer token IDs
+    """
+    tokenized_sequences = []
+    for seq in sequence_list:
+        
+        # Separate sequence into individual strings
+        seq = list(seq)
 
+        # Apply learned merge rules in order
+        for pair in list(merge_rules.keys()):
+            seq = merge_token_pairs(seq, pair)            
 
+        # Map to token IDs
+        tokenized = [token_to_idx[token] for token in seq]
+        tokenized_sequences.append(tokenized)
+    
+    return tokenized_sequences
 
-# Add class for BPE tokenizer
