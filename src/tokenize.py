@@ -49,7 +49,7 @@ def merge_token_pairs(
     return merged_list
 
 
-def bpe_tokenize_dna(
+def train_bpe_tokenizer(
         sequence_list: list[str], 
         final_vocab_size: int, 
         seed = None
@@ -62,7 +62,6 @@ def bpe_tokenize_dna(
     vocab = ["A", "C", "G", "T"]
     split_corpus = [list(seq) for seq in sequence_list]
 
-    # Iterate until vocab reaches desired size
     while len(vocab) < final_vocab_size:
         
         # Store all pair counts in corpus
@@ -70,17 +69,15 @@ def bpe_tokenize_dna(
 
         for seq in split_corpus:
 
-            # Find counts of all adjacent pairs and add to overall pair counts
+            # Find within-sequence counts of all adjacent pairs 
             pair_counts_seq = find_all_adjacent_pairs(seq)
 
             for pair, count in pair_counts_seq.items():
                 pair_counts_all[pair] = pair_counts_all.get(pair, 0) + count
 
-        # Store pairs and counts
+        # Store pairs and counts and find most frequent
         pairs = list(pair_counts_all.keys())
         counts = np.array(list(pair_counts_all.values()))
-
-        # Find pair(s) with the highest counts
         best_idx = np.argwhere(counts == counts.max()).ravel()
 
         # If multiple pairs are found, then randomly select one
@@ -92,10 +89,10 @@ def bpe_tokenize_dna(
             best_idx = best_idx[0]
             best_pair = pairs[best_idx]
         
-        # Join all instances of the pair in split_corpus
+        # Join all instances of pair in corpus and add token
         split_corpus = [merge_token_pairs(seq, best_pair) for seq in split_corpus]
 
-        # Add new token to vocbaulary if its not redundant
+        # Add new token to vocbaulary
         new_token = "".join(best_pair)
         vocab.append(new_token)
 
@@ -104,3 +101,10 @@ def bpe_tokenize_dna(
         merge_rules.update(merge_rule)
 
     return vocab, merge_rules
+
+
+# Add function to perform tokenization using a learned vocab
+
+
+
+# Add class for BPE tokenizer

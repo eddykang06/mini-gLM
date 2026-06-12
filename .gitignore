@@ -1,2 +1,5 @@
 data/**/*.fa.gz
 data/**/*.fa
+__pycache__/
+*.py[cod]
+*$py.class
