@@ -47,3 +47,60 @@ def merge_token_pairs(
             counter += 1
 
     return merged_list
+
+
+def bpe_tokenize_dna(
+        sequence_list: list[str], 
+        final_vocab_size: int, 
+        seed = None
+) -> tuple[list[str], dict[tuple, str]]:
+    
+    rng = np.random.default_rng(seed)
+    merge_rules = {}
+
+    # Pre-tokenization of sequences is done with simple initial vocabulary
+    vocab = ["A", "C", "G", "T"]
+    split_corpus = [list(seq) for seq in sequence_list]
+
+    # Iterate until vocab reaches desired size
+    while len(vocab) < final_vocab_size:
+        
+        # Store all pair counts in corpus
+        pair_counts_all = {}
+
+        for seq in split_corpus:
+
+            # Find counts of all adjacent pairs and add to overall pair counts
+            pair_counts_seq = find_all_adjacent_pairs(seq)
+
+            for pair, count in pair_counts_seq.items():
+                pair_counts_all[pair] = pair_counts_all.get(pair, 0) + count
+
+        # Store pairs and counts
+        pairs = list(pair_counts_all.keys())
+        counts = np.array(list(pair_counts_all.values()))
+
+        # Find pair(s) with the highest counts
+        best_idx = np.argwhere(counts == counts.max()).ravel()
+
+        # If multiple pairs are found, then randomly select one
+        if len(best_idx) > 1:
+            random_idx = rng.choice(best_idx)
+            best_pair = pairs[random_idx]
+        
+        else:
+            best_idx = best_idx[0]
+            best_pair = pairs[best_idx]
+        
+        # Join all instances of the pair in split_corpus
+        split_corpus = [merge_token_pairs(seq, best_pair) for seq in split_corpus]
+
+        # Add new token to vocbaulary if its not redundant
+        new_token = "".join(best_pair)
+        vocab.append(new_token)
+
+        # Store merge rule
+        merge_rule = {best_pair: new_token}
+        merge_rules.update(merge_rule)
+
+    return vocab, merge_rules
