@@ -1,5 +1,8 @@
+data/
 data/**/*.fa.gz
 data/**/*.fa
+data/**/*.fa.fai
+data/**/*.chrom.sizes
 __pycache__/
 *.py[cod]
 *$py.class
