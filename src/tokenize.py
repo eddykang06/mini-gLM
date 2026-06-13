@@ -137,7 +137,7 @@ def tokenize_sequences(
     return tokenized_sequences
 
 
-class BPE_Tokenizer():
+class BPETokenizer():
     """
     Tokenizer class to enable tokenizer training and tokenization of unseen sequences
     """
