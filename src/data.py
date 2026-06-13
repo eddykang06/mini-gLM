@@ -2,8 +2,76 @@
 
 import numpy as np
 import pandas as pd
+import subprocess
 from pyfaidx import Fasta
 from pathlib import Path
+
+
+def run_cmd(command):
+    result = subprocess.run(
+        command,
+        cwd = None,
+        shell = False,
+        text = True,
+        capture_output = True
+    )
+
+    # Check for errors
+    if result.returncode != 0:
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
+        raise RuntimeError(f"Command failed: {command}")
+
+    return result.stdout
+
+
+def configure_root():
+    """
+    Configure root directory structure based on Colab or local files
+    """
+    COLAB = Path("/content").exists()
+    repo_url = "https://github.com/eddykang06/mini-gLM.git"
+    repo_dir = Path("mini-gLM")
+
+    if COLAB:
+        
+        root = Path("/content/mini-gLM")
+        
+        if not repo_dir.exists():
+            run_cmd(["git", "clone", repo_url])
+
+            # Create data folder
+            data_dir = repo_dir / "data"
+            data_dir.mkdir(parents = True, exist_ok = True)
+
+            # Download files
+            run_cmd([
+                "curl", "-L", "-C", "-",
+                "https://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz",
+                "-o", str(data_dir / "hg38.fa.gz")
+            ])
+
+            run_cmd([
+                "curl", "-L", "-C", "-",
+                "https://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes",
+                "-o", str(data_dir / "hg38.chrom.sizes")
+            ])
+
+            # Unzip hg38.fa.gz into hg38.fa
+            hg38_gz = data_dir / "hg38.fa.gz"
+            hg38_fa = data_dir / "hg38.fa"
+            
+            with open(hg38_fa, "w") as output_file:
+                subprocess.run(
+                    ["gunzip", "-c", str(hg38_gz)],
+                    stdout = output_file,
+                    check = True
+                )
+        
+    else:
+        root = Path.cwd().parent
+    
+    return root
 
 
 def sample_from_fasta(
