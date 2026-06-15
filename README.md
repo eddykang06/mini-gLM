@@ -5,12 +5,12 @@
 mini-gLM is a lightweight genomic language model trained on sequences from the hg38 human genome assembly. 
 
 ## Model description
-mini-gLM uses byte-pair encoding (BPE) to tokenize DNA sequences, followed by a sparse attention transformer architecture. The pre-training objective was masked token prediction, allowing mini-gLM to capture bidirectional sequence context. 
+mini-gLM uses byte-pair encoding (BPE) to tokenize DNA sequences, followed by a sparse attention transformer architecture.  The pre-training objective was masked token prediction, allowing mini-gLM to capture bidirectional sequence context. 
 
 ## Repository structure
 
 ## Data
-Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled from the 2013 [hg38](https://hgdownload.soe.ucsc.edu/goldenpath/hg38/bigZips/) human genome assembly, weighted by chromosome length. The annotated pre-training dataset is available on Hugging Face [here](https://huggingface.co/datasets/eddykang06/hg38-pretraining). 
+Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled from the 2013 [hg38](https://hgdownload.soe.ucsc.edu/goldenpath/hg38/bigZips/) human genome assembly, weighted by chromosome length. Sequences were separated at ``N'' characters (unknown bases) and standardized to contain only "A|C|G|T". The annotated pre-training dataset is available on Hugging Face [here](https://huggingface.co/datasets/eddykang06/hg38-pretraining). 
 
 ## Pre-trained weights
 Pre-trained model weights are available at...
