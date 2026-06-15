@@ -74,13 +74,15 @@ def configure_root():
     return root
 
 
+# Replace later with efficient sample to write csv
+
 def sample_from_fasta(
         fasta_file: str | Path,
         chrom_size_file: str | Path,
         n_seqs: int,
         min_length: int,
         max_length: int,
-        seed: int | None = None
+        seed: int | None = None,
 ) -> list:
     """
     Function to sample random sequences of a specified length range from .fa file, weigthed by chromsome length
