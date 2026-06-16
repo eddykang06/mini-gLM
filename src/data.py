@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import subprocess
+import sys
 from pyfaidx import Fasta
 from pathlib import Path
 
@@ -72,7 +73,6 @@ def configure_root():
         root = Path.cwd().parent
     
     return root
-
 
 def sample_from_fasta(
         data_dir: Path,
