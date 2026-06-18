@@ -3,19 +3,6 @@
 import numpy as np
 from collections import Counter
 
-def find_all_adjacent_pairs(
-        token_list: list
-) -> dict:
-    """
-    Given a list of characters, return a dictionary with keys as unique adjacent character tuples and values as the # of times 
-    that adjacent pair appears in the list
-
-    Ex: ["A", "C", "G"] -> {("A", "C"): 1, ("C", "G"): 1}
-    """
-    unique_pair_counts = Counter(zip(token_list, token_list[1:]))
-                                 
-    return unique_pair_counts
-
 
 def merge_token_pairs(
         token_list: list, 
@@ -68,18 +55,14 @@ def train_bpe_tokenizer(
     while len(vocab) < final_vocab_size:
         
         # Store all pair counts in corpus
-        pair_counts_all = {}
+        pair_counts = Counter()
 
         for seq in split_corpus:
-
-            # Find within-sequence counts of all adjacent pairs 
-            pair_counts_seq = find_all_adjacent_pairs(seq)
-
-            for pair, count in pair_counts_seq.items():
-                pair_counts_all[pair] = pair_counts_all.get(pair, 0) + count
+             for a, b in zip(seq, seq[1:])
+                pair_counts([a, b]) += 1
 
         # Store token pairs + counts and find most frequent adjacent tokens
-        best_pair = max(pair_counts_all, key = pair_counts_all.get)
+        best_pair, _ = pair_counts.most_common(1)[0]
         
         # Join all instances of pair in corpus and add token
         split_corpus = [merge_token_pairs(seq, best_pair) for seq in split_corpus]
@@ -158,8 +141,6 @@ class BPETokenizer():
         self.vocab = vocab
         self.merge_rules = merge_rules
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
-        
-        print(f"BPE tokenizer training done!")
     
     # Tokenize a new list of sequences into a token IDs
     def tokenize(
@@ -181,7 +162,7 @@ class BPETokenizer():
         sequence_list: list[str], 
         final_vocab_size: int
     ) -> list[list]:
-        # Train tokenizer on list of sequences
+        
         vocab, merge_rules = train_bpe_tokenizer(
             sequence_list = sequence_list,
             final_vocab_size = final_vocab_size,
