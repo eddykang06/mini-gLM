@@ -58,8 +58,8 @@ def train_bpe_tokenizer(
         pair_counts = Counter()
 
         for seq in split_corpus:
-             for a, b in zip(seq, seq[1:])
-                pair_counts([a, b]) += 1
+             for i in range(len(seq) - 1):
+                 pair_counts[(seq[i], seq[i + 1])] += 1
 
         # Store token pairs + counts and find most frequent adjacent tokens
         best_pair, _ = pair_counts.most_common(1)[0]
