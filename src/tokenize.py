@@ -1,6 +1,7 @@
 """Functions for byte-pair encoding and tokenizer implementation"""
 
 import numpy as np
+from collections import Counter
 
 def find_all_adjacent_pairs(
         token_list: list
@@ -11,15 +12,8 @@ def find_all_adjacent_pairs(
 
     Ex: ["A", "C", "G"] -> {("A", "C"): 1, ("C", "G"): 1}
     """
-    all_pairs = []
-
-    for i in range(len(token_list) - 1):
-        pair = ",".join(token_list[i:i+2])
-        all_pairs.append(pair)
-        
-    unique_pairs, counts = np.unique_counts(all_pairs)
-    unique_pair_counts = {tuple(pair.split(",")): int(count) for pair, count in zip(unique_pairs, counts)}
-
+    unique_pair_counts = Counter(zip(token_list, token_list[1:]))
+                                 
     return unique_pair_counts
 
 
@@ -85,10 +79,7 @@ def train_bpe_tokenizer(
                 pair_counts_all[pair] = pair_counts_all.get(pair, 0) + count
 
         # Store token pairs + counts and find most frequent adjacent tokens
-        pairs = list(pair_counts_all.keys())
-        counts = np.array(list(pair_counts_all.values()))
-        best_idx = np.argmax(counts)
-        best_pair = pairs[best_idx]
+        best_pair = max(pair_counts_all, key = pair_counts_all.get)
         
         # Join all instances of pair in corpus and add token
         split_corpus = [merge_token_pairs(seq, best_pair) for seq in split_corpus]
