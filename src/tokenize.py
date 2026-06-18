@@ -191,7 +191,7 @@ class BPETokenizer():
         self, 
         sequence_list: list[str], 
         final_vocab_size: int
-    ):
+    ) -> list[list]:
         # Train tokenizer on list of sequences
         vocab, merge_rules = train_bpe_tokenizer(
             sequence_list = sequence_list,
