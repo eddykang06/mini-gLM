@@ -176,3 +176,5 @@ def sample_from_fasta(
     # Write to csv
     out_file = out_dir / "pretraining.csv.gz"
     df.to_csv(out_file, compression = "gzip", index = False)
+
+    return df

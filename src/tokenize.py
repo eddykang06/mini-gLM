@@ -133,11 +133,11 @@ class BPETokenizer():
     Tokenizer class to enable tokenizer training and tokenization of unseen sequences
     """
     def __init__(self, vocab = None, merge_rules = None, token_to_idx = None,):
-        self.vocab = vocab
+        self.vocab = vocab if vocab is not None else []
         self.vocab_size = len(self.vocab)
-        self.merge_rules = merge_rules
-        self.token_to_idx = token_to_idx
-        self.idx_to_token = {id: token for token, id in self.token_to_idx}
+        self.merge_rules = merge_rules if merge_rules is not None else {}
+        self.token_to_idx = token_to_idx if token_to_idx is not None else {}
+        self.idx_to_token = {id: token for token, id in self.token_to_idx.items()}
     
     # Train a tokenizer on a given corpus of DNA sequences
     def train(
