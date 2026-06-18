@@ -132,12 +132,12 @@ class BPETokenizer():
     """
     Tokenizer class to enable tokenizer training and tokenization of unseen sequences
     """
-    def __init__(self):
-        self.vocab = None
-        self.vocab_size = None
-        self.merge_rules = None
-        self.token_to_idx = None
-        self.idx_to_token = None
+    def __init__(self, vocab = None, merge_rules = None, token_to_idx = None,):
+        self.vocab = vocab
+        self.vocab_size = len(self.vocab)
+        self.merge_rules = merge_rules
+        self.token_to_idx = token_to_idx
+        self.idx_to_token = {id: token for token, id in self.token_to_idx}
     
     # Train a tokenizer on a given corpus of DNA sequences
     def train(
@@ -156,10 +156,8 @@ class BPETokenizer():
 
         # Update vocab, merge rules, and token ID mapping
         self.vocab = vocab
-        self.vocab_size = len(self.vocab)
         self.merge_rules = merge_rules
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
-        self.idx_to_token = {id: token for id, token in zip(idx, vocab)}
         
         print(f"BPE tokenizer training done!")
     
@@ -194,11 +192,8 @@ class BPETokenizer():
 
         # Update vocab, merge rules, and token ID mapping
         self.vocab = vocab
-        self.vocab_size = len(self.vocab)
-
         self.merge_rules = merge_rules
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
-        self.idx_to_token = {id: token for id, token in zip(idx, vocab)}
 
         # Tokenize the same sequences
         tokenized = tokenize_sequences(
