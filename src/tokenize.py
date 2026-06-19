@@ -61,6 +61,9 @@ def train_bpe_tokenizer(
              for i in range(len(seq) - 1):
                  pair_counts[(seq[i], seq[i + 1])] += 1
 
+        if not pair_counts:
+            break
+
         # Store token pairs + counts and find most frequent adjacent tokens
         best_pair, _ = pair_counts.most_common(1)[0]
         
@@ -139,8 +142,11 @@ class BPETokenizer():
 
         # Update vocab, merge rules, and token ID mapping
         self.vocab = vocab
+        self.vocab_size = len(self.vocab)
         self.merge_rules = merge_rules
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
+        self.idx_to_token = {id: token for token, id in self.token_to_idx.items()}
+
     
     # Tokenize a new list of sequences into a token IDs
     def tokenize(
@@ -173,8 +179,11 @@ class BPETokenizer():
 
         # Update vocab, merge rules, and token ID mapping
         self.vocab = vocab
+        self.vocab_size = len(self.vocab)
         self.merge_rules = merge_rules
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
+        self.idx_to_token = {id: token for token, id in self.token_to_idx.items()}
+
 
         # Tokenize the same sequences
         tokenized = tokenize_sequences(
