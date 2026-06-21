@@ -1,4 +1,4 @@
-"""Classes to implement custom transformers"""
+"""Custom attention, positional encoding, and transformer blocks"""
 
 import numpy as np
 import torch

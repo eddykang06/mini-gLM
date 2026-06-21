@@ -1,4 +1,4 @@
-"""Functions for byte-pair encoding and tokenizer implementation"""
+"""Custom byte-pair encoding algorithm and tokenizer"""
 
 import numpy as np
 from collections import Counter

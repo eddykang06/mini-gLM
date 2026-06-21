@@ -1,4 +1,4 @@
-"""Functions to configure pre-training and fine-tuning data"""
+"""Configuring/loading data"""
 
 import numpy as np
 import pandas as pd
