@@ -184,8 +184,6 @@ class BPETokenizer():
         self.token_to_idx = {token: id for token, id in zip(vocab, idx)}
         self.idx_to_token = {id: token for token, id in self.token_to_idx.items()}
 
-
-        # Tokenize the same sequences
         tokenized = tokenize_sequences(
             sequence_list = sequence_list,
             merge_rules = self.merge_rules,
@@ -193,3 +191,12 @@ class BPETokenizer():
         ) 
 
         return tokenized
+
+
+
+
+
+
+
+
+        

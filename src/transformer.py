@@ -86,10 +86,7 @@ class MultiHeadAttention(nn.Module):
 
         return out
 
-# Note: make sure tha mask is [B, 1, 1, L]
 
-
-# SwiGLU style expert
 class SwiGLU(nn.Module):
     def __init__(self, input_dim, h_dim):
         super().__init__()
