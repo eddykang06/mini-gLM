@@ -61,7 +61,7 @@ class MultiHeadAttention(nn.Module):
         # Final FC
         self.o_map = nn.Linear(d_model, d_model)
 
-    def forward(self, x, mask):
+    def forward(self, x, attn_mask = None):
 
         B, L, D = x.shape
 
@@ -75,8 +75,8 @@ class MultiHeadAttention(nn.Module):
         scores = scores + self.alibi(x)
 
         # Padding mask
-        if mask is not None:
-            scores = scores.masked_fill(mask == 0, float("-inf"))
+        if attn_mask is not None:
+            scores = scores.masked_fill(attn_mask == 0, float("-inf"))
 
         a = torch.softmax(scores, dim = -1)
 
@@ -197,9 +197,9 @@ class MoETransformer():
         self.dropout2 = nn.Dropout(p = p_drop)
         self.norm2 = nn.LayerNorm()
 
-    def forward(self, x):
+    def forward(self, x, attn_mask):
 
-        x = self.norm1(x + self.dropout1(self.attention(x)))
+        x = self.norm1(x + self.dropout1(self.attention(x, attn_mask)))
         out = self.norm2(x + self.dropout2(self.moe(x)))
 
         return out

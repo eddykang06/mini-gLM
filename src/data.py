@@ -130,9 +130,9 @@ class hg38Data(Dataset):
         self.token_map_path = token_map_path
 
         with open(self.merge_rules_path, "rb") as f:
-            self.merge_rules = pickle.load(self.merge_rules_path)
+            self.merge_rules = pickle.load(f)
         with open(self.token_map_path, "rb") as f:
-            self.token_map = pickle.load(self.token_map_path)
+            self.token_map = pickle.load(f)
 
         # Get tokenizer learned params and load them into the tokenizer
         self.tokenizer = BPETokenizer(

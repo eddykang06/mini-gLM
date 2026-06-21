@@ -40,9 +40,9 @@ class DenseGLM(nn.Module):
         # Final mapping to vocab size
         self.final = nn.Linear(d_model, vocab_size)
         
-    def forward(self, x):
+    def forward(self, x, attn_mask):
 
-        x = self.model(x)
+        x = self.model(x, attn_mask)
         logits = self.final(x)
 
         return logits
