@@ -2,9 +2,7 @@
 
 import numpy as np
 import pandas as pd
-import subprocess
-import sys
-import pickle
+import json
 import torch
 from torch.utils.data import DataLoader, Dataset, BatchSampler
 from torch.nn.utils.rnn import pad_sequence
@@ -123,16 +121,24 @@ class hg38Data(Dataset):
     """
     Custom dataset to load hg38 pre-training data from HuggingFace using trained tokenizer params store in .pkl files.
     """
-    def __init__(self, data_path, merge_rules_path, token_map_path):
+    def __init__(
+            self, 
+            data_path: Path, 
+            merge_rules_path: Path, 
+            token_map_path: Path
+    ):
 
         # Get sequences from HF path to tokenized dataset
         self.merge_rules_path = merge_rules_path
         self.token_map_path = token_map_path
 
-        with open(self.merge_rules_path, "rb") as f:
-            self.merge_rules = pickle.load(f)
-        with open(self.token_map_path, "rb") as f:
-            self.token_map = pickle.load(f)
+        with open(self.merge_rules_path, "r") as f:
+            self.merge_rules = json.load(f)
+        with open(self.token_map_path, "r") as f:
+            self.token_map = json.load(f)
+
+        # Convert to dictionary
+        self.merge_rules = {tuple(key): value for key, value in self.merge_rules}
 
         # Get tokenizer learned params and load them into the tokenizer
         self.tokenizer = BPETokenizer(
@@ -164,7 +170,11 @@ class DynamicBatchSampler(BatchSampler):
     Note: this implementation also assumes that the tokenized sequence data is already sorted from shortest to longest.
     """
 
-    def __init__(self, dataset, batch_space):
+    def __init__(
+            self, 
+            dataset: Dataset, 
+            batch_space: int
+    ):
         self.batch_space = batch_space
         self.dataset = dataset
         self.dataset_size = len(self.dataset)
@@ -210,7 +220,13 @@ class MLMCollator():
     """
     Collator with right padding within batch, attention mask generation, and BERT-style training token selection.
     """
-    def __init__(self, vocab_size, predict_prob, masking_prob, randomize_prob):
+    def __init__(
+            self, 
+            vocab_size: int, 
+            predict_prob: float, 
+            masking_prob: float, 
+            randomize_prob: float
+    ):
         self.vocab_size = vocab_size
         self.padding_token = int(self.vocab_size + 1)
         self.masking_token = int(self.vocab_size + 2)
