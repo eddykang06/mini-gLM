@@ -244,9 +244,8 @@ class MLMCollator():
         )
         B, L = labels.shape
 
-        # Generate the attention mask [B, 1, 1, L]
+        # Generate the attention mask [B, L]
         attn_mask = labels == self.padding_token
-        attn_mask_reshaped = attn_mask.unsqueeze(-2).unsqueeze(-2)
 
         # Select 15% of tokens in batch (not including padding tokens)
         predict_mask = 1 < torch.rand(B, L) + attn_mask < 1 + self.predict_prob
@@ -268,5 +267,5 @@ class MLMCollator():
             "batch": converted,
             "labels": labels,
             "predict_mask": predict_mask,
-            "attention_mask": attn_mask_reshaped
+            "attention_mask": attn_mask
         }

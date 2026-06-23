@@ -9,7 +9,7 @@ from src.tranformer import MoETransformer
 
 class DenseGLM(nn.Module):
     def __init__(self, vocab_size, num_blocks, d_model, num_heads, h_dim, num_experts, top_k, p_drop):
-        
+        super().__init__()
         self.vocab_size = vocab_size
         self.num_blocks = num_blocks
         self.d_model = d_model
@@ -24,25 +24,33 @@ class DenseGLM(nn.Module):
             embedding_dim = self.d_model
         )
 
-        self.moe_transformer = MoETransformer(
-            d_model = self.d_model,
-            num_heads = self.num_heads,
-            h_dim = self.h_dim,
-            num_experts = self.num_experts,
-            top_k = self.top_k,
-            p_drop = self.p_drop
-        )
-
         self.model = nn.ModuleList([
-            self.moe_transformer for _ in range(num_blocks)
+            MoETransformer(
+                d_model = self.d_model,
+                num_heads = self.num_heads,
+                h_dim = self.h_dim,
+                num_experts = self.num_experts,
+                top_k = self.top_k,
+                p_drop = self.p_drop
+            ) for _ in range(num_blocks)
         ])
 
         # Final mapping to vocab size
         self.final = nn.Linear(d_model, vocab_size)
         
     def forward(self, x, attn_mask):
+        
+        temp = self.embedding(x)
+        aux_loss = 0.0
 
-        x = self.model(x, attn_mask)
-        logits = self.final(x)
+        for block in self.model:
+            temp, loss = block(temp, attn_mask)
+            aux_loss += loss
 
-        return logits
+        logits = self.final(temp)
+
+        return logits, aux_loss
+    
+
+
+# note: don't compute auxiliary loss when evaluating loss on validation set??
