@@ -187,6 +187,35 @@ class MoELayer(nn.Module):
         return out, aux_loss
     
 
+class SimpleTransformer(nn.Module):
+    def __init__(self, d_model, num_heads, p_drop):
+        super().__init__()
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+
+        # Layers
+        self.attention = MultiHeadAttention(
+            d_model = self.d_model,
+            num_heads = self.num_heads
+        )
+        self.dropout1 = nn.Dropout(p = p_drop)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.ff = nn.Linear(d_model, d_model)
+        self.relu = F.relu
+        self.dropout2 = nn.Dropout(p = p_drop)
+        self.norm2 = nn.LayerNorm(d_model)
+
+    def forward(self, x, attn_mask):
+
+        attn_out = self.attention(x, attn_mask)
+        x = self.norm1(x +  self.dropout1(attn_out))
+        ff_out = self.relu(self.ff(x))
+        out = self.norm2(x + self.dropout2(ff_out))
+
+        return out
+
+
 class MoETransformer(nn.Module):
     def __init__(self, d_model, num_heads, h_dim, num_experts, top_k, p_drop):
         super().__init__()
@@ -215,8 +244,9 @@ class MoETransformer(nn.Module):
 
     def forward(self, x, attn_mask):
 
-        x = self.norm1(x + self.dropout1(self.attention(x, attn_mask)))
-        x, aux_loss = self.moe(x)
-        out = self.norm2(x + self.dropout2(x))
+        attn_out = self.attent(x, attn_mask)
+        x = self.norm1(x + self.dropout1(attn_out))
+        moe_out, aux_loss = self.moe(x)
+        out = self.norm2(x + self.dropout2(moe_out))
 
         return out, aux_loss

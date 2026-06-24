@@ -148,7 +148,8 @@ class hg38Data(Dataset):
 
         # Load data from HF and tokenize
         self.sequence_list = pd.read_csv(data_path, compression = "gzip", usecols = ["sequence"])["sequence"].to_list()
-        self.tokenized_list = self.tokenizer.tokenize(self.sequence_list).sort(key = len)
+        self.tokenized_list = self.tokenizer.tokenize(self.sequence_list)
+        self.tokenized_list.sort(key = len)
 
     def __len__(self):
         return len(self.tokenized_list)
