@@ -4,10 +4,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.attention.flex_attention import flex_attention, create_block_mask
+
+# Configurations
+torch.manual_seed(111)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+flex_atention = torch.compile(flex_attention)
 
 
 class ALiBi(nn.Module):
-    """Implementation of ALiBi relative positional encoding"""
+    """Implementation of ALiBi relative positional encoding from scratch"""
 
     def __init__(self, num_heads):
         super().__init__()
@@ -41,7 +47,9 @@ class ALiBi(nn.Module):
         return out
 
 
-class MultiHeadAttention(nn.Module):
+class ScratchMultiHeadAttention(nn.Module):
+    """Implementation of multi-head attention from scratch"""
+    
     def __init__(self, d_model, num_heads):
         super().__init__()
 
@@ -85,6 +93,79 @@ class MultiHeadAttention(nn.Module):
         out = out.transpose(1, 2).reshape(B, L, D)
         out = self.o_map(out)
 
+        return out
+
+
+def generate_alibi_slopes(num_heads):
+    """
+    Generate tensor of per-head ALiBi slopes using geometric sequence
+
+    Args:
+        num_heads : Number of heads in multi-head attention implementation
+    
+    Returns:
+        slopes : Per-head slopes
+    """
+    slopes = 2**(-torch.arange(1, num_heads + 1) * 8 / num_heads)
+    return slopes.to(device)
+
+
+class FlexMultiHeadAttention(nn.Module):
+    """Implementation of multi-head attention with Flex attention and ALiBi"""
+    
+    def __init__(self, d_model, num_heads):
+        assert d_model % num_heads == 0
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_head = self.d_model // self.num_heads
+
+        self.alibi_slopes = generate_alibi_slopes(self.num_heads)
+
+        self.q_map = nn.Linear(d_model, d_model)
+        self.k_map = nn.Linear(d_model, d_model)
+        self.v_map = nn.Linear(d_model, d_model)
+    
+    def forward(self, x, attn_mask = None):
+
+        # Define internal ALiBi function
+        def alibi(score, b, h, q_idx, kv_idx):
+            slope = self.alibi_slopes[h]
+            score = slope * -torch.abs(q_idx - kv_idx)
+            return score
+
+        # Define internal padding mask function
+        def padding_mask(b, h, q_idx, kv_idx):
+            q_valid = padding_mask[b, q_idx]
+            kv_valid = padding_mask[b, kv_idx]
+            return q_valid & kv_valid
+        
+        B, L, D = x.shape
+
+        q = self.q_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
+        k = self.k_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
+        v = self.v_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask.to(device = q.device, dtype = torch.bool)
+        
+        # Construct padding mask compatible with Flex attn
+        block_mask = create_block_mask(
+            padding_mask,
+            B = B,
+            H = self.num_heads,
+            Q_LEN = L,
+            KV_LEN = L,
+            device = q.device
+        )
+
+        # Attention with mixed precision
+        with torch.autocast(device_type = "cuda", dtype = torch.bfloat16):
+            out = flex_attention(
+                q, k, v, 
+                score_mode = alibi, 
+                block_mask = block_mask
+            )
+        
         return out
 
 
@@ -195,7 +276,7 @@ class SimpleTransformer(nn.Module):
         self.num_heads = num_heads
 
         # Layers
-        self.attention = MultiHeadAttention(
+        self.attention = FlexMultiHeadAttention(
             d_model = self.d_model,
             num_heads = self.num_heads
         )
@@ -227,7 +308,7 @@ class MoETransformer(nn.Module):
         self.top_k = top_k
 
         # Layers
-        self.attention = MultiHeadAttention(
+        self.attention = FlexMultiHeadAttention(
             d_model = self.d_model,
             num_heads = self.num_heads
         )
