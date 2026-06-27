@@ -30,7 +30,7 @@ def train_dense_glm(
     val_dataset: Dataset,
     device: str,
     wandb_run: wandb,
-    log_every: int
+    val_every: int,
 ):
     
     # Load train and val data
@@ -60,10 +60,11 @@ def train_dense_glm(
     tokens_seen = 0
     best_val_loss = float("inf")
     time_to_best_val_loss = 0.0
-    tokens_to_best_val_loss = 0.0
+    tokens_to_best_val_loss = 0
 
     # Loss function
     loss_fn = nn.CrossEntropyLoss(ignore_index = -100)
+    loss_fn_sum = nn.CrossEntropyLoss(ignore_index = -100, reduction = "sum")
 
     # Start timer
     run_start_time = time.perf_counter()
@@ -76,9 +77,9 @@ def train_dense_glm(
         
             # Store batch items (match with output of collate_fn)
             batch = batch_items["batch"].to(device).long()
-            labels = batch_items["labels"].to(device).long()
-            predict_mask = batch_items["predict_mask"].to(device)
-            attention_mask = batch_items["attention_mask"].to(device)
+            labels = batch_items["labels"].to(device).long().clone()
+            predict_mask = batch_items["predict_mask"].to(device).bool()
+            attention_mask = batch_items["attention_mask"].to(device).bool()
 
             # Generate predicted tokens and apply prediction mask to labels
             logits = model(batch, attention_mask)
@@ -86,8 +87,8 @@ def train_dense_glm(
 
             # Calculate CE loss
             loss = loss_fn(
-                logits.view(-1, logits.shape(-1)),  # [B*L, vocab_size]
-                labels.view(-1)                    # [B*L]
+                logits.reshape(-1, logits.shape(-1)),  # [B*L, vocab_size]
+                labels.reshape(-1)                    # [B*L]
             )
 
             # clear gradient, backprop, update params
@@ -96,19 +97,31 @@ def train_dense_glm(
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optim.step()
 
-            # Step counter
+            # Calculate per step metrics
             num_steps += 1
+            train_loss = loss.item()
+            tokens_seen += attention_mask.sum().item()
 
-            # Every x steps, calculate all metrics
-            if num_steps % log_every == 0:
-                
-                # Calculate time elapsed
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                now = time.perf_counter()
-                time_elapsed = now - run_start_time
+            # Calculate time elapsed
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            now = time.perf_counter()
+            time_elapsed = now - run_start_time
+
+            # Report metrics
+            wandb_run.log({
+                "epoch": epoch,
+                "tokens_seen": tokens_seen,
+                "train_loss": train_loss,
+                "time_elapsed": time_elapsed
+            },
+            step = num_steps)
+
+            # Log validation metrics in specified intervals
+            if num_steps % val_every == 0:
                                 
-                val_loss = 0.0
+                val_loss_sum = 0.0
+                val_target_count = 0
                 model.eval()
 
                 # Evaluate validation loss
@@ -118,49 +131,52 @@ def train_dense_glm(
 
                         # Get batch items
                         val_batch = val_batch_items["batch"].to(device).long()
-                        val_labels = val_batch_items["labels"].to(device).long()
-                        val_predict_mask = val_batch_items["predict_mask"].to(device)
-                        val_attention_mask = val_batch_items["attention_mask"].to(device)
+                        val_labels = val_batch_items["labels"].to(device).long().clone()
+                        val_predict_mask = val_batch_items["predict_mask"].to(device).bool()
+                        val_attention_mask = val_batch_items["attention_mask"].to(device).bool()
 
                         # Get logits and CE loss
                         val_logits = model(val_batch, val_attention_mask)
                         val_labels[~val_predict_mask] = -100
 
-                        val_batch_loss = loss_fn(
-                            val_logits.view(-1, val_logits.shape(-1)),  # [B*L, vocab_size]
-                            val_labels.view(-1)                     # [B*L]
+                        val_batch_loss_sum = loss_fn_sum(
+                            val_logits.reshape(-1, val_logits.size(-1)),  # [B*L, vocab_size]
+                            val_labels.reshape(-1)                      # [B*L]
                         )
+                        
+                        val_loss_sum += val_batch_loss_sum.item()
+                        val_target_count += (val_labels != -100).sum().item()
 
-                        # Store loss
-                        val_loss += val_batch_loss.item() * val_logits.size(0)
+                # Normalize loss over prediction tokens
+                val_loss = val_loss_sum / max(val_target_count, 1)
                 
-                # Calculate all meaningful metrics
-                train_loss = loss.item()
-                tokens_seen += attention_mask.sum().item()
-                val_loss = val_loss / len(val_dataset)
-                
-                # update best validation loss if applicable
+                # Update best validation loss if applicable
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
                     tokens_to_best_val_loss = tokens_seen
                     time_to_best_val_loss = time_elapsed
 
-                # Report metrics
-                wandb_run.log({
-                    "num_steps": num_steps,
-                    "tokens_seen": tokens_seen,
-                    "train_loss": train_loss,
-                    "val_loss": val_loss,
-                    "time_elapsed": time_elapsed
-                })
+                # Report validation loss and reset train
+                wandb_run.log(
+                    {
+                        "val_loss": val_loss
+                     },
+                    step = num_steps)
+                
+                model.train()
+
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    
+    total_time = time.perf_counter() - run_start_time
 
     # Run summary metrics
     wandb_run.summary["best_val_loss"] = best_val_loss
     wandb_run.summary["time_to_best_val_loss"] = time_to_best_val_loss
     wandb_run.summary["tokens_to_best_val_loss"] = tokens_to_best_val_loss
-    wandb_run.summary["tokens_per_second"] = tokens_seen / time_elapsed
-    wandb_run.summary["steps_per_minute"] = num_steps * 60 / time_elapsed
-    wandb_run.summary["total_time"] = time_elapsed
+    wandb_run.summary["tokens_per_second"] = tokens_seen / total_time
+    wandb_run.summary["steps_per_minute"] = num_steps * 60 / total_time
+    wandb_run.summary["total_time"] = total_time
 
     print("Training complete!")
 
