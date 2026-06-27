@@ -117,15 +117,15 @@ def sample_from_fasta(
     return df
 
 
-class hg38Data(Dataset):
+class RawData(Dataset):
     """
-    Custom dataset to load hg38 pre-training data from HuggingFace using trained tokenizer params store in .pkl files.
+    Custom dataset to load and tokenize hg38 pre-training data from HuggingFace using trained tokenizer params files.
     """
     def __init__(
-            self, 
-            data_path: Path, 
-            merge_rules_path: Path, 
-            token_map_path: Path
+        self, 
+        data_path: Path, 
+        merge_rules_path: Path, 
+        token_map_path: Path
     ):
 
         # Get sequences from HF path to tokenized dataset
@@ -159,6 +159,30 @@ class hg38Data(Dataset):
         tokenized = torch.tensor(tokenized)
 
         return tokenized
+    
+
+
+# Add a tokenized data loader from HF
+class TokenizedData(Dataset):
+    """
+    Custom dataset to load tokenized data from HF
+    """
+    def __init__(
+        self,
+        data_path
+    ):
+        self.data_path = data_path
+        self.tokenized_list = # load parquet or whatever format it's in*
+
+
+    def __len__(self):
+        return len(self.tokenized_list)
+
+    def __getitem__(self, idx):
+        tokenized = self.tokenized_list[idx]
+        
+        return tokenized
+
 
 
 class DynamicBatchSampler(BatchSampler):
@@ -246,7 +270,7 @@ class MLMCollator():
         B, L = labels.shape
 
         # Generate the attention mask [B, L]
-        attn_mask = labels == self.padding_token
+        attn_mask = labels != self.padding_token
 
         # Select 15% of tokens in batch (not including padding tokens)
         predict_mask = 1 < torch.rand(B, L) + attn_mask < 1 + self.predict_prob
