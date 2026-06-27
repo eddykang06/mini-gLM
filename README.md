@@ -12,6 +12,9 @@ mini-gLM uses byte-pair encoding (BPE) to tokenize DNA sequences, followed by re
 ## Data
 Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled from the 2013 [hg38](https://hgdownload.soe.ucsc.edu/goldenpath/hg38/bigZips/) human genome assembly, weighted by chromosome length. Sequences were separated at ``N'' characters (unknown bases) and standardized to contain only "A|C|G|T". The annotated pre-training dataset is available on Hugging Face [here](https://huggingface.co/datasets/eddykang06/hg38-pretraining). 
 
+## Training details
+Flex attention, dynamic batching, mixed precision (bf16 and fp32), A100 GPU
+
 ## Pre-trained weights
 Pre-trained model weights are available at...
 
