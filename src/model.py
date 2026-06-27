@@ -1,6 +1,5 @@
 """Custom models built using custom transformer building blocks"""
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

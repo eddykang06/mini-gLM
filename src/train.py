@@ -1,23 +1,15 @@
 """Training loop and configuration for MLM objective"""
 
-import numpy as np
-import pandas as pd
-import pickle
 import wandb
 import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, BatchSampler
-from torch.nn.utils.rnn import pad_sequence
 from typing import Callable
-from src.tokenize import BPETokenizer
 from src.model import DenseGLM
 
 
-
-## Configure training loop for the dense GLM (no auxiliary loss)
-## Add mixed precision and flash attention??
 def train_dense_glm(
     max_epochs: int,
     lr: float,
@@ -32,6 +24,9 @@ def train_dense_glm(
     wandb_run: wandb,
     val_every: int,
 ):
+    """
+    Train a gLM with dense attention and standard transformer blocks
+    """
     
     # Load train and val data
     train_loader = DataLoader(
@@ -183,3 +178,11 @@ def train_dense_glm(
     return model
 
 
+def train_moe_glm()
+# For the MoE transformer**
+# logits, aux_loss = model(batch, attention_mask)
+# Then add scaled aux_loss to the overal loss function*
+
+
+def train_sparse_glm():
+    
