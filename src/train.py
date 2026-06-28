@@ -114,7 +114,7 @@ def train_dense_glm(
 
             # Log validation metrics in specified intervals
             if num_steps % val_every == 0:
-                                
+    
                 val_loss_sum = 0.0
                 val_target_count = 0
                 model.eval()
@@ -145,11 +145,26 @@ def train_dense_glm(
                 # Normalize loss over prediction tokens
                 val_loss = val_loss_sum / max(val_target_count, 1)
                 
+                # Verbose
+                print(f"Step: {num_steps}, train loss: {train_loss}, validation loss: {val_loss}")
+                
                 # Update best validation loss if applicable
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
                     tokens_to_best_val_loss = tokens_seen
                     time_to_best_val_loss = time_elapsed
+
+                    # Save model checkpoint
+                    torch.save({
+                        "epoch": epoch,
+                        "num_steps": num_steps,
+                        "model_state_dict": model.state_dict(),
+                        "optimizer_state_dict": optim.state_dict(),
+                        "val_loss": val_loss
+                    }, f"model_at_step_{num_steps}.pt"
+                    )
+
+                    print(f"Saved best model at {num_steps} steps, val_loss = {val_loss:.4f}")
 
                 # Report validation loss and reset train
                 wandb_run.log(
@@ -178,11 +193,10 @@ def train_dense_glm(
     return model
 
 
-def train_moe_glm()
+def train_moe_glm():
 # For the MoE transformer**
 # logits, aux_loss = model(batch, attention_mask)
 # Then add scaled aux_loss to the overal loss function*
 
 
 def train_sparse_glm():
-    
