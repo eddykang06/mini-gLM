@@ -162,26 +162,26 @@ class RawData(Dataset):
     
 
 
-# Add a tokenized data loader from HF
-class TokenizedData(Dataset):
-    """
-    Custom dataset to load tokenized data from HF
-    """
-    def __init__(
-        self,
-        data_path
-    ):
-        self.data_path = data_path
-        self.tokenized_list = # load parquet or whatever format it's in*
+# # Add a tokenized data loader from HF
+# class TokenizedData(Dataset):
+#     """
+#     Custom dataset to load tokenized data from HF
+#     """
+#     def __init__(
+#         self,
+#         data_path
+#     ):
+#         self.data_path = data_path
+#         self.tokenized_list = # load parquet or whatever format it's in*
 
 
-    def __len__(self):
-        return len(self.tokenized_list)
+#     def __len__(self):
+#         return len(self.tokenized_list)
 
-    def __getitem__(self, idx):
-        tokenized = self.tokenized_list[idx]
+#     def __getitem__(self, idx):
+#         tokenized = self.tokenized_list[idx]
         
-        return tokenized
+#         return tokenized
 
 
 
