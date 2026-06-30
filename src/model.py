@@ -19,7 +19,7 @@ class DenseGLM(nn.Module):
         self.p_drop = p_drop
 
         self.embedding = nn.Embedding(
-            num_embeddings = self.vocab_size,
+            num_embeddings = self.vocab_size + 2, # For masking and padding tokens
             embedding_dim = self.d_model
         )
 

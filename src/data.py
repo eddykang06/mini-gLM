@@ -117,38 +117,21 @@ def sample_from_fasta(
     return df
 
 
-class RawData(Dataset):
+class TokenizedDataset(Dataset):
     """
     Custom dataset to load and tokenize hg38 pre-training data from HuggingFace using trained tokenizer params files.
     """
     def __init__(
         self, 
         data_path: Path, 
-        merge_rules_path: Path, 
-        token_map_path: Path
     ):
-
-        # Get sequences from HF path to tokenized dataset
-        self.merge_rules_path = merge_rules_path
-        self.token_map_path = token_map_path
-
-        with open(self.merge_rules_path, "r") as f:
-            self.merge_rules = json.load(f)
-        with open(self.token_map_path, "r") as f:
-            self.token_map = json.load(f)
-
-        # Convert to dictionary
-        self.merge_rules = {tuple(key): value for key, value in self.merge_rules}
-
-        # Get tokenizer learned params and load them into the tokenizer
-        self.tokenizer = BPETokenizer(
-            merge_rules = self.merge_rules,
-            token_to_idx = self.token_map
-        )
-
-        # Load data from HF and tokenize
-        self.sequence_list = pd.read_csv(data_path, compression = "gzip", usecols = ["sequence"])["sequence"].to_list()
-        self.tokenized_list = self.tokenizer.tokenize(self.sequence_list)
+        # Get tokenized datat from path
+        self.data_path = data_path
+        self.tokenized_list = pd.read_csv(
+            data_path,
+            compression = "gzip",
+            usecols = ["tokenized"]
+        )["sequence"].to_list()
         self.tokenized_list.sort(key = len)
 
     def __len__(self):
@@ -159,30 +142,6 @@ class RawData(Dataset):
         tokenized = torch.tensor(tokenized)
 
         return tokenized
-    
-
-
-# # Add a tokenized data loader from HF
-# class TokenizedData(Dataset):
-#     """
-#     Custom dataset to load tokenized data from HF
-#     """
-#     def __init__(
-#         self,
-#         data_path
-#     ):
-#         self.data_path = data_path
-#         self.tokenized_list = # load parquet or whatever format it's in*
-
-
-#     def __len__(self):
-#         return len(self.tokenized_list)
-
-#     def __getitem__(self, idx):
-#         tokenized = self.tokenized_list[idx]
-        
-#         return tokenized
-
 
 
 class DynamicBatchSampler(BatchSampler):
@@ -196,9 +155,9 @@ class DynamicBatchSampler(BatchSampler):
     """
 
     def __init__(
-            self, 
-            dataset: Dataset, 
-            batch_space: int
+        self, 
+        dataset: Dataset, 
+        batch_space: int
     ):
         self.batch_space = batch_space
         self.dataset = dataset
@@ -241,23 +200,27 @@ class DynamicBatchSampler(BatchSampler):
         return num_batches
 
 
-class MLMCollator():
+class MLMCollator:
     """
     Collator with right padding within batch, attention mask generation, and BERT-style training token selection.
     """
     def __init__(
-            self, 
-            vocab_size: int, 
-            predict_prob: float, 
-            masking_prob: float, 
-            randomize_prob: float
+        self, 
+        vocab_size: int, 
+        predict_prob: float, 
+        masking_prob: float, 
+        mutate_prob: float
     ):
         self.vocab_size = vocab_size
-        self.padding_token = int(self.vocab_size + 1)
-        self.masking_token = int(self.vocab_size + 2)
+        self.padding_token = vocab_size
+        self.masking_token = vocab_size + 1
+
         self.predict_prob = predict_prob
         self.masking_prob = masking_prob
-        self.mutate_prob = randomize_prob
+        self.mutate_prob = mutate_prob
+
+        if masking_prob + mutate_prob > 1.0:
+            raise ValueError("masking_prob + randomize_prob must be <= 1.0")
     
     def __call__(self, batch):
 
@@ -266,31 +229,47 @@ class MLMCollator():
             sequences = batch, 
             batch_first = True, 
             padding_value = self.padding_token
-        )
+        ).long()
+
         B, L = labels.shape
+        device = labels.device
 
         # Generate the attention mask [B, L]
-        attn_mask = labels != self.padding_token
+        attention_mask = labels != self.padding_token
 
-        # Select 15% of tokens in batch (not including padding tokens)
-        predict_mask = 1 < torch.rand(B, L) + attn_mask < 1 + self.predict_prob
+        # Select prediction targets from real tokens
+        predict_mask = (torch.rand(B, L, device = device) < self.predict_prob) & attention_mask
 
-        # 80% masked, 10% mutated, 10% unchanged
-        mask_mask = 1 < torch.rand(B, L) + predict_mask < 1 + self.masking_prob
-        mutate_mask = 1 < torch.rand(B, L) + mask_mask + predict_mask < 1 + self.mutate_prob
+        # Select tokens to be masked and mutated
+        corruption_rand = torch.rand(B, L, device=device)
+        mask_mask = predict_mask & (corruption_rand < self.masking_prob)
+
+        mutate_mask = (
+            predict_mask
+            & (corruption_rand >= self.masking_prob)
+            & (corruption_rand < self.masking_prob + self.mutate_prob)
+        )
 
         # Convert masked tokens
-        converted = labels.copy()
+        converted = labels.clone()
         converted[mask_mask] = self.masking_token
 
         # Convert mutated tokens
-        num_mutated = mutate_mask.sum()
-        converted[mutate_mask] = torch.randint(self.vocab_size, (num_mutated,))
+        num_mutated = mutate_mask.sum().item()
+
+        if num_mutated > 0:
+            converted[mutate_mask] = torch.randint(
+                low = 0,
+                high = self.vocab_size, 
+                size = (num_mutated,),
+                device = device,
+                dtype = torch.long
+            )
 
         # Strap everything into a clean output as dict (reference in training loop)
         return {
             "batch": converted,
             "labels": labels,
             "predict_mask": predict_mask,
-            "attention_mask": attn_mask
+            "attention_mask": attention_mask
         }

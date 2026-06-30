@@ -14,7 +14,10 @@ flex_atention = torch.compile(flex_attention)
 class ALiBi(nn.Module):
     """Implementation of ALiBi relative positional encoding from scratch"""
 
-    def __init__(self, num_heads):
+    def __init__(
+        self, 
+        num_heads: int
+    ):
         super().__init__()
 
         self.num_heads = num_heads
@@ -49,7 +52,11 @@ class ALiBi(nn.Module):
 class ScratchMultiHeadAttention(nn.Module):
     """Implementation of multi-head attention from scratch"""
     
-    def __init__(self, d_model, num_heads):
+    def __init__(
+        self, 
+        d_model: int, 
+        num_heads: int
+    ):
         super().__init__()
 
         assert d_model % num_heads == 0
@@ -112,7 +119,11 @@ def generate_alibi_slopes(num_heads):
 class FlexMultiHeadAttention(nn.Module):
     """Implementation of multi-head attention with Flex attention and ALiBi"""
     
-    def __init__(self, d_model, num_heads):
+    def __init__(
+        self, 
+        d_model: int, 
+        num_heads: int
+    ):
         assert d_model % num_heads == 0
         self.d_model = d_model
         self.num_heads = num_heads
@@ -169,7 +180,11 @@ class FlexMultiHeadAttention(nn.Module):
 
 
 class SwiGLU(nn.Module):
-    def __init__(self, input_dim, h_dim):
+    def __init__(
+        self, 
+        input_dim :int, 
+        h_dim: int
+    ):
         super().__init__()
 
         self.input_dim = input_dim
@@ -190,7 +205,13 @@ class SwiGLU(nn.Module):
 
 
 class MoELayer(nn.Module):
-    def __init__(self, input_dim, h_dim, num_experts, top_k):
+    def __init__(
+        self, 
+        input_dim: int, 
+        h_dim: int, 
+        num_experts: int, 
+        top_k: int
+    ):
         super().__init__()
         
         assert 1 <= top_k <= num_experts
@@ -268,7 +289,12 @@ class MoELayer(nn.Module):
     
 
 class SimpleTransformer(nn.Module):
-    def __init__(self, d_model, num_heads, p_drop):
+    def __init__(
+        self, 
+        d_model: int, 
+        num_heads: int, 
+        p_drop: float
+    ):
         super().__init__()
 
         self.d_model = d_model
@@ -297,7 +323,15 @@ class SimpleTransformer(nn.Module):
 
 
 class MoETransformer(nn.Module):
-    def __init__(self, d_model, num_heads, h_dim, num_experts, top_k, p_drop):
+    def __init__(
+        self, 
+        d_model: int, 
+        num_heads: int, 
+        h_dim: int, 
+        num_experts: int, 
+        top_k: int, 
+        p_drop: float
+    ):
         super().__init__()
 
         self.d_model = d_model
