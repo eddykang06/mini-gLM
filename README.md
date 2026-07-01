@@ -24,7 +24,7 @@ Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled
 
 ## Training details
 Training scheme and engineering highlights:
-- FlexAtention for efficient, flexible attention map computation
+- FlexAttention for efficient, flexible attention map computation
 - Dynamic batching for consistent token count per batch and minimal padding token usage
 - Mixed precision training (bf16, fp32)
 - A100 GPU through Google Cloud
