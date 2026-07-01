@@ -1,8 +1,7 @@
 # mini-gLM: A minimal genomic language model
-## [In progress]
 
 ## Overview
-mini-gLM is a minimal genomic language model trained on sequences from the hg38 human genome assembly. 
+mini-gLM is a minimal genomic language model trained on sequences from the hg38 human genome assembly and optimized for efficiency.
 
 ## Model description
 mini-gLM uses byte-pair encoding (BPE) to tokenize DNA sequences, followed by relative positional encoding using ALiBi. The model follows an encoder-only architecture consisting of sparse transformers with SwiGLU Mixture-of-Experts routing. The pre-training objective was masked token prediction, allowing mini-gLM to capture bidirectional sequence context. 
