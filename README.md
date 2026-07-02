@@ -24,9 +24,10 @@ Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled
 
 ## Training details
 Training features:
+- A100 GPU using Google Cloud
 - Dynamic batching for consistent token count per batch and minimal padding token usage
-- Mixed precision training (bf16, fp32) and efficient attention map computation through FlexAttention
-- A100 GPU through Google Cloud
+- Efficient, flexible attention map computation using FlexAttention
+- Mixed precision training (bf16, fp32) to reduce memory and compute cost
 
 ## Pre-trained weights
 Coming soon!
