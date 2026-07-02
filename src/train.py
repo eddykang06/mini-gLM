@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, BatchSampler
+from torch.amp import autocast
 from typing import Callable
 from src.model import DenseGLM
 
@@ -21,8 +22,8 @@ def train_dense_glm(
     train_dataset: Dataset,
     val_dataset: Dataset,
     device: str,
-    wandb_run: wandb,
     val_every: int,
+    run 
 ):
     """
     Train a gLM with dense attention and standard transformer blocks
@@ -76,15 +77,17 @@ def train_dense_glm(
             predict_mask = batch_items["predict_mask"].to(device).bool()
             attention_mask = batch_items["attention_mask"].to(device).bool()
 
-            # Generate predicted tokens and apply prediction mask to labels
-            logits = model(batch, attention_mask)
-            labels[~predict_mask] = -100
+            # Autocasting
+            with autocast(device_type = "cude", dtype = torch.bfloat16):
+                # Generate predicted tokens and apply prediction mask to labels
+                logits = model(batch, attention_mask)
+                labels[~predict_mask] = -100
 
-            # Calculate CE loss
-            loss = loss_fn(
-                logits.reshape(-1, logits.shape(-1)),  # [B*L, vocab_size]
-                labels.reshape(-1)                    # [B*L]
-            )
+                # Calculate CE loss
+                loss = loss_fn(
+                    logits.reshape(-1, logits.shape(-1)),  # [B*L, vocab_size]
+                    labels.reshape(-1)                    # [B*L]
+                )
 
             # clear gradient, backprop, update params
             optim.zero_grad()
@@ -104,7 +107,7 @@ def train_dense_glm(
             time_elapsed = now - run_start_time
 
             # Report metrics
-            wandb_run.log({
+            run.log({
                 "epoch": epoch,
                 "tokens_seen": tokens_seen,
                 "train_loss": train_loss,
@@ -167,7 +170,7 @@ def train_dense_glm(
                     print(f"Saved best model at {num_steps} steps, val_loss = {val_loss:.4f}")
 
                 # Report validation loss and reset train
-                wandb_run.log(
+                run.log(
                     {
                         "val_loss": val_loss
                      },
@@ -181,22 +184,18 @@ def train_dense_glm(
     total_time = time.perf_counter() - run_start_time
 
     # Run summary metrics
-    wandb_run.summary["best_val_loss"] = best_val_loss
-    wandb_run.summary["time_to_best_val_loss"] = time_to_best_val_loss
-    wandb_run.summary["tokens_to_best_val_loss"] = tokens_to_best_val_loss
-    wandb_run.summary["tokens_per_second"] = tokens_seen / total_time
-    wandb_run.summary["steps_per_minute"] = num_steps * 60 / total_time
-    wandb_run.summary["total_time"] = total_time
+    run.summary["best_val_loss"] = best_val_loss
+    run.summary["time_to_best_val_loss"] = time_to_best_val_loss
+    run.summary["tokens_to_best_val_loss"] = tokens_to_best_val_loss
+    run.summary["tokens_per_second"] = tokens_seen / total_time
+    run.summary["steps_per_minute"] = num_steps * 60 / total_time
+    run.summary["total_time"] = total_time
 
     print("Training complete!")
 
     return model
 
 
-def train_moe_glm():
 # For the MoE transformer**
 # logits, aux_loss = model(batch, attention_mask)
 # Then add scaled aux_loss to the overal loss function*
-
-
-def train_sparse_glm():

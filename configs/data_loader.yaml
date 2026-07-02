@@ -1,4 +1,11 @@
-data:
+pretraining:
   repo_id: "eddykang06/mini-gLM-data"
+  repo_type: "dataset"
+  train_folder: "pretraining/train"
+  val_folder: "pretraining/val"
+  train_file: "pretraining-train-tokenized.csv.gz"
+  val_file: "pretraining-val-tokenized.csv.gz"
+
+finetuning:
   
 

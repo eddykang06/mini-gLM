@@ -168,13 +168,11 @@ class FlexMultiHeadAttention(nn.Module):
             device = q.device
         )
 
-        # Attention with mixed precision
-        with torch.autocast(device_type = "cuda", dtype = torch.bfloat16):
-            out = flex_attention(
-                q, k, v, 
-                score_mode = alibi, 
-                block_mask = block_mask
-            )
+        out = flex_attention(
+            q, k, v, 
+            score_mode = alibi, 
+            block_mask = block_mask
+        )
         
         return out
 
