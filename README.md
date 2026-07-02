@@ -22,11 +22,10 @@ mini-gLM/
 ## Data
 Pre-training data consisted of 1 million sequences of length 500-5000 bp sampled from the 2013 [hg38](https://hgdownload.soe.ucsc.edu/goldenpath/hg38/bigZips/) human genome assembly. The annotated pre-training dataset is available on Hugging Face [here](https://huggingface.co/datasets/eddykang06/hg38-pretraining). 
 
-## Training details
+## Engineering and training details
 Training scheme and engineering highlights:
-- FlexAttention for efficient, flexible attention map computation
 - Dynamic batching for consistent token count per batch and minimal padding token usage
-- Mixed precision training (bf16, fp32)
+- Mixed precision training (bf16, fp32) and efficient attention map computation through FlexAttention
 - A100 GPU through Google Cloud
 
 ## Pre-trained weights
