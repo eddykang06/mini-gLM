@@ -6,7 +6,6 @@ import json
 import torch
 from torch.utils.data import DataLoader, Dataset, BatchSampler
 from torch.nn.utils.rnn import pad_sequence
-from src.tokenize import BPETokenizer
 from pyfaidx import Fasta
 from pathlib import Path
 
@@ -125,20 +124,27 @@ class TokenizedDataset(Dataset):
         self, 
         data_path: Path, 
     ):
-        # Get tokenized datat from path
+        # Get tokenized data from path
         self.data_path = data_path
-        self.tokenized_list = pd.read_csv(
+
+        columns = ["tokenized", "tokenized_length"]
+        df = pd.read_parquet(
             data_path,
-            compression = "gzip",
-            usecols = ["tokenized"]
-        )["sequence"].to_list()
-        self.tokenized_list.sort(key = len)
+            columns = columns
+        )
+        df = df.sort_values("tokenized_length").reset_index(drop = True)
+        self.tokenized_list = df["tokenized"].to_list()
 
     def __len__(self):
         return len(self.tokenized_list)
 
     def __getitem__(self, idx):
         tokenized = self.tokenized_list[idx]
+        tokenized = np.fromstring(
+            tokenized.strip("[]"),
+            sep = " ",
+            dtype = np.int64
+        )
         tokenized = torch.tensor(tokenized)
 
         return tokenized
@@ -273,3 +279,48 @@ class MLMCollator:
             "predict_mask": predict_mask,
             "attention_mask": attention_mask
         }
+
+
+def get_pretraining_data(root: Path):
+    """
+    Args:
+        root : Path to root directory
+
+    Returns:
+        train_dataset : Training data converted to Dataset
+        val_dataset   : Validation data convert to Dataset
+    
+    """
+    config_path = Path(root / "configs" / "data_loader.yaml")
+
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)["pretraining"]
+    
+    repo_id = cfg["repo_id"]
+    repo_type = cfg["repo_type"]
+    train_folder = cfg["train_folder"]
+    val_folder = cfg["val_folder"]
+    train_file = cfg["train_file"]
+    val_file = cfg["val_file"]
+
+    train_path = hf_hub_download(
+        repo_id = repo_id,
+        repo_type = repo_type,
+        subfolder = train_folder,
+        filename = train_file
+    )
+    val_path = hf_hub_download(
+        repo_id = repo_id,
+        repo_type = repo_type,
+        subfolder = val_folder,
+        filename = val_file
+    )
+
+    train_dataset = TokenizedDataset(
+        data_path = train_path
+    )
+    val_dataset = TokenizedDataset(
+        data_path = val_path
+    )
+
+    return train_dataset, val_dataset

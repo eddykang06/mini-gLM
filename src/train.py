@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, Dataset, BatchSampler
 from torch.amp import autocast
 from typing import Callable
 from src.model import DenseGLM
+from src.data import DynamicBatchSampler, MLMCollator
 
 
 def train_dense_glm(
@@ -16,9 +17,10 @@ def train_dense_glm(
     lr: float,
     model_params: dict,
     weight_decay: float,
-    train_sampler: BatchSampler,
-    val_sampler: BatchSampler,
-    collate_fn: Callable,
+    batch_space: int,
+    predict_prob: float,
+    masking_prob: float,
+    mutate_prob: float,
     train_dataset: Dataset,
     val_dataset: Dataset,
     device: str,
@@ -28,8 +30,23 @@ def train_dense_glm(
     """
     Train a gLM with dense attention and standard transformer blocks
     """
-    
-    # Load train and val data
+    # Get configs for data loaders
+    train_sampler = DynamicBatchSampler(
+        dataset = train_dataset,
+        batch_space = batch_space
+    )
+    val_sampler = DynamicBatchSampler(
+        dataset = val_dataset,
+        batch_space = batch_space
+    )
+    collate_fn = MLMCollator(
+        vocab_size = 512,
+        predict_prob = predict_prob,
+        masking_prob = masking_prob,
+        mutate_prob = mutate_prob
+    )
+
+    # Train and val dataloaders
     train_loader = DataLoader(
         dataset = train_dataset,
         batch_sampler = train_sampler,
