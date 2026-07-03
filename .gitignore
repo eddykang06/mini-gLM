@@ -6,3 +6,4 @@ data/**/*.chrom.sizes
 __pycache__/
 *.py[cod]
 *$py.class
+notebooks/tokenize.ipynb

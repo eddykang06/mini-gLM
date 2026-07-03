@@ -3,8 +3,8 @@ pretraining:
   repo_type: "dataset"
   train_folder: "pretraining/train"
   val_folder: "pretraining/val"
-  train_file: "pretraining-train-tokenized.csv.gz"
-  val_file: "pretraining-val-tokenized.csv.gz"
+  train_file: "pretraining-train-tokenized.parquet"
+  val_file: "pretraining-val-tokenized.parquet"
 
 finetuning:
   
