@@ -8,7 +8,7 @@ from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 # Configurations
 torch.manual_seed(111)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-flex_atention = torch.compile(flex_attention)
+flex_attention = torch.compile(flex_attention)
 
 
 class ALiBi(nn.Module):
@@ -144,12 +144,6 @@ class FlexMultiHeadAttention(nn.Module):
             score = slope * -torch.abs(q_idx - kv_idx)
             return score
 
-        # Define internal padding mask function
-        def padding_mask(b, h, q_idx, kv_idx):
-            q_valid = padding_mask[b, q_idx]
-            kv_valid = padding_mask[b, kv_idx]
-            return q_valid & kv_valid
-        
         B, L, D = x.shape
 
         q = self.q_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
@@ -157,23 +151,31 @@ class FlexMultiHeadAttention(nn.Module):
         v = self.v_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
 
         if attn_mask is not None:
-            attn_mask = attn_mask.to(device = q.device, dtype = torch.bool)
+            attn_mask_bool = attn_mask.to(device = q.device, dtype = torch.bool)
+
+            # Define internal padding mask function
+            def padding_mask(b, h, q_idx, kv_idx):
+                q_valid = attn_mask_bool[b, q_idx]
+                kv_valid = attn_mask_bool[b, kv_idx]
+                return q_valid & kv_valid
         
-        # Construct padding mask compatible with Flex attn
-        block_mask = create_block_mask(
-            padding_mask,
-            B = B,
-            H = self.num_heads,
-            Q_LEN = L,
-            KV_LEN = L,
-            device = q.device
-        )
+            # Construct padding mask compatible with Flex attn
+            block_mask = create_block_mask(
+                padding_mask,
+                B = B,
+                H = self.num_heads,
+                Q_LEN = L,
+                KV_LEN = L,
+                device = q.device
+            )
 
         out = flex_attention(
             q, k, v, 
-            score_mode = alibi, 
+            score_mod = alibi, 
             block_mask = block_mask
         )
+
+        out = out.transpose(1, 2).reshape(B, L, D)
         
         return out
 
