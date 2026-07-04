@@ -2,12 +2,13 @@
 
 import numpy as np
 import pandas as pd
-import json
+import json, yaml
 import torch
 from torch.utils.data import DataLoader, Dataset, BatchSampler
 from torch.nn.utils.rnn import pad_sequence
 from pyfaidx import Fasta
 from pathlib import Path
+from huggingface_hub import hf_hub_download
 
 
 def sample_from_fasta(
