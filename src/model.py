@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.tranformer import SimpleTransformer, MoETransformer
+from src.transformer import SimpleTransformer, MoETransformer
 
 
 class DenseGLM(nn.Module):
