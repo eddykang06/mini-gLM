@@ -124,6 +124,7 @@ class FlexMultiHeadAttention(nn.Module):
         d_model: int, 
         num_heads: int
     ):
+        super().__init__()
         assert d_model % num_heads == 0
         self.d_model = d_model
         self.num_heads = num_heads
