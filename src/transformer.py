@@ -86,7 +86,7 @@ class ScratchMultiHeadAttention(nn.Module):
         scores = q @ k.transpose(-2, -1) / (self.d_head ** 0.5)
 
         # Add alibi scores
-        scores + self.alibi(x).to(dtype = scores.dtype)
+        scores = scores + self.alibi(x).to(dtype = scores.dtype)
 
         # Padding mask
         if attn_mask is not None:
@@ -136,13 +136,13 @@ class FlexMultiHeadAttention(nn.Module):
         self.k_map = nn.Linear(d_model, d_model)
         self.v_map = nn.Linear(d_model, d_model)
     
-    def forward(self, x, attn_mask = None):
+    def forward(self, x, attn_mask):
 
         # Define internal ALiBi function
         def alibi(score, b, h, q_idx, kv_idx):
             slope = self.alibi_slopes[h]
-            score = slope * -torch.abs(q_idx - kv_idx)
-            return score
+            bias = slope * -torch.abs(q_idx - kv_idx)
+            return score + bias
 
         B, L, D = x.shape
 
@@ -150,24 +150,23 @@ class FlexMultiHeadAttention(nn.Module):
         k = self.k_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
         v = self.v_map(x).reshape(B, L, self.num_heads, self.d_head).transpose(1, 2)
 
-        if attn_mask is not None:
-            attn_mask_bool = attn_mask.to(device = q.device, dtype = torch.bool)
+        attn_mask_bool = attn_mask.to(device = q.device, dtype = torch.bool)
 
-            # Define internal padding mask function
-            def padding_mask(b, h, q_idx, kv_idx):
-                q_valid = attn_mask_bool[b, q_idx]
-                kv_valid = attn_mask_bool[b, kv_idx]
-                return q_valid & kv_valid
-        
-            # Construct padding mask compatible with Flex attn
-            block_mask = create_block_mask(
-                padding_mask,
-                B = B,
-                H = self.num_heads,
-                Q_LEN = L,
-                KV_LEN = L,
-                device = q.device
-            )
+        # Define internal padding mask function
+        def padding_mask(b, h, q_idx, kv_idx):
+            q_valid = attn_mask_bool[b, q_idx]
+            kv_valid = attn_mask_bool[b, kv_idx]
+            return q_valid & kv_valid
+    
+        # Construct padding mask compatible with Flex attn
+        block_mask = create_block_mask(
+            padding_mask,
+            B = B,
+            H = self.num_heads,
+            Q_LEN = L,
+            KV_LEN = L,
+            device = q.device
+        )
 
         out = flex_attention(
             q, k, v, 
@@ -213,7 +212,7 @@ class MoELayer(nn.Module):
         num_experts: int, 
         top_k: int
     ):
-        super().__init__()
+        super().__init__() 
         
         assert 1 <= top_k <= num_experts
         self.input_dim = input_dim
@@ -359,7 +358,7 @@ class MoETransformer(nn.Module):
 
     def forward(self, x, attn_mask):
 
-        attn_out = self.attent(x, attn_mask)
+        attn_out = self.attention(x, attn_mask)
         x = self.norm1(x + self.dropout1(attn_out))
         moe_out, aux_loss = self.moe(x)
         out = self.norm2(x + self.dropout2(moe_out))
