@@ -108,7 +108,7 @@ def train_dense_glm(
                 )
 
             # clear gradient, backprop, update params
-            optim.zero_grad()
+            optim.zero_grad(set_to_none = True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optim.step()
@@ -140,10 +140,10 @@ def train_dense_glm(
                 val_target_count = 0
                 model.eval()
 
-                # Evaluate validation loss
-                for val_batch_items in val_loader:
-
-                    with torch.no_grad():
+                with torch.inference_mode():
+                    
+                    # Evaluate validation loss
+                    for val_batch_items in val_loader:
 
                         # Get batch items
                         val_batch = val_batch_items["batch"].to(device).long()

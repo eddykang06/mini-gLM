@@ -284,6 +284,8 @@ class MLMCollator:
 
 def get_pretraining_data(root: Path):
     """
+    Get train and val data from HuggingFace dataset and load as torch datasets
+
     Args:
         root : Path to root directory
 

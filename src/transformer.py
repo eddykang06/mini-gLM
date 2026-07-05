@@ -171,7 +171,7 @@ class FlexMultiHeadAttention(nn.Module):
         out = flex_attention(
             q, k, v, 
             score_mod = alibi, 
-            block_mask = block_mask
+            block_mask = None      # CHANGE BACK AFTER TRYING*****
         )
 
         out = out.transpose(1, 2).reshape(B, L, D)
