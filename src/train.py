@@ -40,7 +40,7 @@ def train_dense_glm(
         batch_space = batch_space
     )
     collate_fn = MLMCollator(
-        vocab_size = 512,
+        vocab_size = model_params["vocab_size"],
         predict_prob = predict_prob,
         masking_prob = masking_prob,
         mutate_prob = mutate_prob
@@ -93,9 +93,10 @@ def train_dense_glm(
             labels = batch_items["labels"].to(device).long().clone()
             predict_mask = batch_items["predict_mask"].to(device).bool()
             attention_mask = batch_items["attention_mask"].to(device).bool()
-
+            
             # Autocasting
-            with autocast(device_type = "cude", dtype = torch.bfloat16):
+            with autocast(device_type = "cuda", dtype = torch.bfloat16):
+                
                 # Generate predicted tokens and apply prediction mask to labels
                 logits = model(batch, attention_mask)
                 labels[~predict_mask] = -100
@@ -150,17 +151,20 @@ def train_dense_glm(
                         val_predict_mask = val_batch_items["predict_mask"].to(device).bool()
                         val_attention_mask = val_batch_items["attention_mask"].to(device).bool()
 
-                        # Get logits and CE loss
-                        val_logits = model(val_batch, val_attention_mask)
-                        val_labels[~val_predict_mask] = -100
-
-                        val_batch_loss_sum = loss_fn_sum(
-                            val_logits.reshape(-1, val_logits.size(-1)),  # [B*L, vocab_size]
-                            val_labels.reshape(-1)                      # [B*L]
-                        )
-                        
-                        val_loss_sum += val_batch_loss_sum.item()
-                        val_target_count += (val_labels != -100).sum().item()
+                        # Autocasting
+                        with autocast(device_type = "cuda", dtype = torch.bfloat16):
+                            
+                            # Get logits and CE loss
+                            val_logits = model(val_batch, val_attention_mask)
+                            val_labels[~val_predict_mask] = -100
+                            
+                            val_batch_loss_sum = loss_fn_sum(
+                                val_logits.reshape(-1, val_logits.size(-1)),  # [B*L, vocab_size]
+                                val_labels.reshape(-1)                      # [B*L]
+                            )
+                            
+                            val_loss_sum += val_batch_loss_sum.item()
+                            val_target_count += (val_labels != -100).sum().item()
 
                 # Normalize loss over prediction tokens
                 val_loss = val_loss_sum / max(val_target_count, 1)
