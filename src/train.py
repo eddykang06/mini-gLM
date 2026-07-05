@@ -1,15 +1,15 @@
 """Training loop and configuration for MLM objective"""
 
-import wandb
 import time
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, BatchSampler
+
+from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast
 from typing import Callable
 from src.model import DenseGLM
 from src.data import DynamicBatchSampler, MLMCollator
+from wandb.sdk.wandb_run import Run
 
 
 def train_dense_glm(
@@ -25,7 +25,7 @@ def train_dense_glm(
     val_dataset: Dataset,
     device: str,
     val_every: int,
-    run 
+    run: Run
 ):
     """
     Train a gLM with dense attention and standard transformer blocks
@@ -93,7 +93,7 @@ def train_dense_glm(
             labels = batch_items["labels"].to(device).long().clone()
             predict_mask = batch_items["predict_mask"].to(device).bool()
             attention_mask = batch_items["attention_mask"].to(device).bool()
-            
+
             # Autocasting
             with autocast(device_type = "cuda", dtype = torch.bfloat16):
                 
@@ -103,7 +103,7 @@ def train_dense_glm(
 
                 # Calculate CE loss
                 loss = loss_fn(
-                    logits.reshape(-1, logits.shape(-1)),  # [B*L, vocab_size]
+                    logits.reshape(-1, logits.shape[-1]),  # [B*L, vocab_size]
                     labels.reshape(-1)                    # [B*L]
                 )
 
@@ -165,7 +165,7 @@ def train_dense_glm(
                             
                             val_loss_sum += val_batch_loss_sum.item()
                             val_target_count += (val_labels != -100).sum().item()
-
+                
                 # Normalize loss over prediction tokens
                 val_loss = val_loss_sum / max(val_target_count, 1)
                 
