@@ -164,9 +164,9 @@ class DynamicBatchSampler(BatchSampler):
     def __init__(
         self, 
         dataset: Dataset, 
-        batch_space: int
+        attention_space: int
     ):
-        self.batch_space = batch_space
+        self.attention_space = attention_space
         self.dataset = dataset
         self.dataset_size = len(self.dataset)
     
@@ -177,7 +177,7 @@ class DynamicBatchSampler(BatchSampler):
         for i in range(self.dataset_size):
             batch.append(i)
 
-            if len(self.dataset[i]) * len(batch) >= self.batch_space:
+            if len(self.dataset[i]) * len(batch)**2 >= self.attention_space:
                 batches.append(batch)
                 batch = []
         
@@ -197,7 +197,7 @@ class DynamicBatchSampler(BatchSampler):
         for i in range(self.dataset_size):
             batch_size += 1
 
-            if len(self.dataset[i]) * batch_size >= self.batch_space:
+            if len(self.dataset[i]) * batch_size**2 >= self.attention_space:
                 num_batches += 1
                 batch_size = 0
             
