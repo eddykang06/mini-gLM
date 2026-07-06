@@ -33,11 +33,11 @@ def train_dense_glm(
     # Get configs for data loaders
     train_sampler = DynamicBatchSampler(
         dataset = train_dataset,
-        batch_space = attention_space
+        attention_space = attention_space
     )
     val_sampler = DynamicBatchSampler(
         dataset = val_dataset,
-        batch_space = attention_space
+        attention_space = attention_space
     )
     collate_fn = MLMCollator(
         vocab_size = model_params["vocab_size"],
