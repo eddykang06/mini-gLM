@@ -5,11 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 
-# Configurations
 torch.manual_seed(111)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-flex_attention = torch.compile(flex_attention)
-
+flex_attention = torch.compile(flex_attention, dynamic = True)
 
 class ALiBi(nn.Module):
     """Implementation of ALiBi relative positional encoding from scratch"""
@@ -165,7 +162,8 @@ class FlexMultiHeadAttention(nn.Module):
             H = self.num_heads,
             Q_LEN = L,
             KV_LEN = L,
-            device = q.device
+            device = q.device,
+            _compile = True
         )
 
         out = flex_attention(

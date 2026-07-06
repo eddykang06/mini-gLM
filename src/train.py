@@ -211,7 +211,8 @@ def train_dense_glm(
     run.summary["tokens_per_second"] = tokens_seen / total_time
     run.summary["steps_per_minute"] = num_steps * 60 / total_time
     run.summary["total_time"] = total_time
-
+    run.finish()
+    
     print("Training complete!")
 
     return model
