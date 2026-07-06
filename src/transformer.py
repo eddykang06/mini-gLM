@@ -7,6 +7,7 @@ from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 
 torch.manual_seed(111)
 flex_attention = torch.compile(flex_attention, dynamic = True)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ALiBi(nn.Module):
     """Implementation of ALiBi relative positional encoding from scratch"""
