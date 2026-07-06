@@ -158,20 +158,20 @@ class FlexMultiHeadAttention(nn.Module):
             kv_valid = attn_mask_bool[b, kv_idx]
             return q_valid & kv_valid
     
-        # # Construct padding mask compatible with Flex attn
-        # block_mask = create_block_mask(
-        #     padding_mask,
-        #     B = B,
-        #     H = self.num_heads,
-        #     Q_LEN = L,
-        #     KV_LEN = L,
-        #     device = q.device
-        # )
+        # Construct padding mask compatible with Flex attn
+        block_mask = create_block_mask(
+            padding_mask,
+            B = B,
+            H = self.num_heads,
+            Q_LEN = L,
+            KV_LEN = L,
+            device = q.device
+        )
 
         out = flex_attention(
             q, k, v, 
             score_mod = alibi, 
-            block_mask = None      # CHANGE BACK AFTER TRYING*****
+            block_mask = block_mask      # CHANGE BACK AFTER TRYING*****
         )
 
         out = out.transpose(1, 2).reshape(B, L, D)
