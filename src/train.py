@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from typing import Callable
 from src.model import DenseGLM
 from src.data import DynamicBatchSampler, MLMCollator
@@ -58,15 +59,14 @@ def train_dense_glm(
         collate_fn = collate_fn
     )
 
-    # Initialize model
     model = DenseGLM(**model_params)
     model.to(device).float()
 
-    # Muon optimizer
     optim = torch.optim.AdamW(
         model.parameters(), 
         lr = lr, 
         weight_decay = weight_decay)
+    scheduler = CosineAnnealingLR(optim, T_max = len(train_sampler) * max_epochs)
 
     # Initialize metrics to store
     num_steps = 0
@@ -112,6 +112,7 @@ def train_dense_glm(
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optim.step()
+            scheduler.step()
 
             # Calculate per step metrics
             num_steps += 1
@@ -183,7 +184,8 @@ def train_dense_glm(
                         "epoch": epoch,
                         "num_steps": num_steps,
                         "model_state_dict": model.state_dict(),
-                        "optimizer_state_dict": optim.state_dict(),
+                        "optim_state_dict": optim.state_dict(),
+                        "scheduler_state_dict": scheduler.state_dict(),
                         "val_loss": val_loss
                     }, f"model_at_step_{num_steps}.pt"
                     )
