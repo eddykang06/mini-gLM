@@ -28,6 +28,7 @@ Training features:
 - Dynamic batching for consistent token count per batch and minimal padding token usage
 - Efficient, flexible attention map computation using FlexAttention
 - Mixed precision training (bf16, fp32) to reduce memory and compute cost
+- Adam optimizer with cosine annealing for dynamic learning rate adjustment
 
 ## Pre-trained weights
 Coming soon!
