@@ -180,6 +180,41 @@ class FlexMultiHeadAttention(nn.Module):
         return out
 
 
+class SimpleTransformer(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        p_drop: float
+    ):
+        super().__init__()
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+
+        self.attention = FlexMultiHeadAttention(
+            d_model=self.d_model,
+            num_heads=self.num_heads
+        )
+        self.dropout1 = nn.Dropout(p=p_drop)
+        self.norm1 = nn.LayerNorm(d_model)
+
+        self.ff = nn.Linear(d_model, d_model)
+        self.relu = F.relu
+
+        self.dropout2 = nn.Dropout(p=p_drop)
+        self.norm2 = nn.LayerNorm(d_model)
+
+    def forward(self, x, attn_mask):
+        attn_out = self.attention(x, attn_mask)
+        x = self.norm1(x + self.dropout1(attn_out))
+
+        ff_out = self.relu(self.ff(x))
+        out = self.norm2(x + self.dropout2(ff_out))
+
+        return out
+    
+    
 class SwiGLU(nn.Module):
     def __init__(
         self, 
