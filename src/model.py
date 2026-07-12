@@ -61,7 +61,7 @@ class MoEGLM(nn.Module):
         self.p_drop = p_drop
 
         self.embedding = nn.Embedding(
-            num_embeddings = self.vocab_size,
+            num_embeddings = self.vocab_size + 2,
             embedding_dim = self.d_model
         )
 
@@ -88,6 +88,8 @@ class MoEGLM(nn.Module):
             temp, loss = block(temp, attn_mask)
             aux_loss += loss
 
+        # Average auxiliary loss across blocks
+        aux_loss = aux_loss / len(self.model)
         logits = self.final(temp)
 
         return logits, aux_loss

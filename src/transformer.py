@@ -133,6 +133,7 @@ class FlexMultiHeadAttention(nn.Module):
         self.q_map = nn.Linear(d_model, d_model)
         self.k_map = nn.Linear(d_model, d_model)
         self.v_map = nn.Linear(d_model, d_model)
+        self.o_map = nn.Linear(d_model, d_model)
     
     def forward(self, x, attn_mask):
 
@@ -174,6 +175,7 @@ class FlexMultiHeadAttention(nn.Module):
         )
 
         out = out.transpose(1, 2).reshape(B, L, D)
+        out = self.o_map(out)
         
         return out
 
@@ -227,98 +229,66 @@ class MoELayer(nn.Module):
         # Router for per-expert logits
         self.router = nn.Linear(input_dim, num_experts)
 
-    def forward(self, x):
 
+    def forward(self, x, attn_mask = None):
         B, L, D = x.shape
+        x_reshaped = x.reshape(B * L, D)
 
-        # Reshape for expert processing [B*L, D]
-        x_reshaped = x.reshape(-1, D)
+        if attn_mask is None:
+            valid_mask = torch.ones(
+                B * L,
+                dtype=torch.bool,
+                device=x.device
+            )
+        else:
+            valid_mask = attn_mask.reshape(B * L).to(
+                device=x.device,
+                dtype=torch.bool
+            )
 
-        # Logits [B*L, num_experts]
-        router_logits = self.router(x_reshaped)
-        router_probs = F.softmax(router_logits, dim = -1)
+        # Exclude padding before routing
+        valid_x = x_reshaped[valid_mask]
 
-        # Get the top-k experts, then softmax to probabilty distribution over those k experts
-        # Output [B*L, k]
-        top_k_logits, top_k_idx = torch.topk(router_logits, self.top_k, dim = -1)
-        top_k_probs = F.softmax(top_k_logits, dim = -1)
+        router_logits = self.router(valid_x)
+        router_probs = F.softmax(router_logits, dim=-1)
 
-        # Initialize output tensor
-        out = torch.zeros(
-            B * L, D,
-            device = x.device,
-            dtype = x.dtype
+        top_k_logits, top_k_idx = torch.topk(
+            router_logits,
+            self.top_k,
+            dim=-1
         )
+        top_k_probs = F.softmax(top_k_logits, dim=-1)
 
-        # Process through selected experts
-        unique_experts = torch.unique(top_k_idx)
+        # Full output stays zero at padding positions
+        out = torch.zeros_like(x_reshaped)
+        valid_out = torch.zeros_like(valid_x)
 
-        for i in unique_experts:
-            expert_id = int(i)
+        for expert_id_tensor in torch.unique(top_k_idx):
+            expert_id = int(expert_id_tensor.item())
 
-            # Token mask [B*L] to decide which token of input should use this expert
-            mask = (top_k_idx == expert_id)
-            token_mask = mask.any(dim = 1)
-            assert token_mask.any()
+            selected = top_k_idx == expert_id
+            token_mask = selected.any(dim=1)
 
-            # Select tokens, apply the expert, and add to output
-            expert_input = x_reshaped[token_mask]
-            expert_weight = top_k_probs[mask].unsqueeze(-1) # [B*L, 1]
-            expert_output = self.experts[expert_id](expert_input) # [B*L, D]
+            expert_input = valid_x[token_mask]
+            expert_output = self.experts[expert_id](expert_input)
+            expert_weight = top_k_probs[selected].unsqueeze(-1)
 
-            out[token_mask] += expert_output * expert_weight
-        
-        # Reshape
+            valid_out[token_mask] += expert_output * expert_weight
+
+        # Scatter valid token results back into [B*L, D]
+        out[valid_mask] = valid_out
         out = out.reshape(B, L, D)
 
-        # Compute fraction of tokens routed to expert i (argmax of expert probabilities)
-        # expert_mask is onehot [B*L, top_k, num_experts]
-        expert_mask = F.one_hot(top_k_idx, num_classes = self.num_experts).float()
+        expert_mask = F.one_hot(
+            top_k_idx,
+            num_classes=self.num_experts
+        ).float()
 
-        # f [num_experts]
-        f = expert_mask.mean(dim = (0, 1))
-
-        # Compute fraction of router probability assigned to expert i, p[num_experts]
-        p = router_probs.mean(dim = 0) 
-
-        # Calculate auxiliary loss
+        f = expert_mask.mean(dim=(0, 1))
+        p = router_probs.mean(dim=0)
         aux_loss = torch.dot(f, p) * self.num_experts
 
         return out, aux_loss
-    
-
-class SimpleTransformer(nn.Module):
-    def __init__(
-        self, 
-        d_model: int, 
-        num_heads: int, 
-        p_drop: float
-    ):
-        super().__init__()
-
-        self.d_model = d_model
-        self.num_heads = num_heads
-
-        # Layers
-        self.attention = FlexMultiHeadAttention(
-            d_model = self.d_model,
-            num_heads = self.num_heads
-        )
-        self.dropout1 = nn.Dropout(p = p_drop)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.ff = nn.Linear(d_model, d_model)
-        self.relu = F.relu
-        self.dropout2 = nn.Dropout(p = p_drop)
-        self.norm2 = nn.LayerNorm(d_model)
-
-    def forward(self, x, attn_mask):
-
-        attn_out = self.attention(x, attn_mask)
-        x = self.norm1(x +  self.dropout1(attn_out))
-        ff_out = self.relu(self.ff(x))
-        out = self.norm2(x + self.dropout2(ff_out))
-
-        return out
 
 
 class MoETransformer(nn.Module):
@@ -359,7 +329,7 @@ class MoETransformer(nn.Module):
 
         attn_out = self.attention(x, attn_mask)
         x = self.norm1(x + self.dropout1(attn_out))
-        moe_out, aux_loss = self.moe(x)
+        moe_out, aux_loss = self.moe(x, attn_mask)
         out = self.norm2(x + self.dropout2(moe_out))
 
         return out, aux_loss
