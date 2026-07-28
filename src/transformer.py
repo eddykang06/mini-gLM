@@ -254,14 +254,4 @@ class LinearTransformer(nn.Module):
     def forward(self, x, attn_mask):
         out = self.model(x, input_mask = attn_mask)
         return out
-
-model = LinearTransformer(
-    d_model = D,
-    num_heads = 8,
-    p_drop = 0.1,
-    vocab_size = vocab_size,
-    max_seq_len = 1000
-).to(device)
-
-model(x, attn_mask = mask).shape
     
