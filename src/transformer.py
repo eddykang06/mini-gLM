@@ -4,7 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.attention.flex_attention import flex_attention, create_block_mask
-from linear_attention_transformer import LinearAttentionTransformer
+from linear_attention_transformer import (
+    LinearAttentionTransformer,
+    LinearAttentionTransformerLM
+)
 
 torch.manual_seed(111)
 flex_attention = torch.compile(flex_attention, dynamic = True)
@@ -219,7 +222,10 @@ class SimpleTransformer(nn.Module):
 
 
 """Linear attention transformer"""
-class LinearTransformer(nn.Module):
+class LinearTransformerWithPositional(nn.Module):
+    """
+    Linear attention transformer with built-in rotary embedding layer
+    """
     def __init__(
         self,
         d_model,
@@ -245,8 +251,8 @@ class LinearTransformer(nn.Module):
             num_tokens = self.vocab_size + 2,
             depth = 1,
             max_seq_len = self.max_seq_len,
-            ff_dropout = 0.1,
-            attn_layer_dropout = 0.1,
+            ff_dropout = self.p_drop,
+            attn_layer_dropout = self.p_drop,
             use_rotary_emb = True,
             return_embeddings = True
         )
@@ -254,4 +260,39 @@ class LinearTransformer(nn.Module):
     def forward(self, x, attn_mask):
         out = self.model(x, input_mask = attn_mask)
         return out
-    
+
+class LinearTransformerStandard(nn.Module):
+    """
+    Linear attention transformer with no embedding layer (standard)
+    """
+    def __init__(
+        self,
+        d_model,
+        num_heads,
+        p_drop,
+        vocab_size,
+        max_seq_len
+    ):  
+        super().__init__()
+        assert d_model % num_heads == 0, "Model dimension must be a multiple of the number of heads"
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_head = self.d_model // self.num_heads
+        self.p_drop = p_drop
+        self.vocab_size = vocab_size
+        self.max_seq_len = max_seq_len
+
+        self.model = LinearAttentionTransformer(
+            dim = self.d_model,
+            heads = self.num_heads,
+            dim_head = self.d_head,
+            depth = 1,
+            max_seq_len = self.max_seq_len,
+            ff_dropout = self.p_drop,
+            attn_layer_dropout = self.p_drop,
+        )
+
+    def forward(self, x, attn_mask):
+        out = self.model(x, input_mask = attn_mask)
+        return out
