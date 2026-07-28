@@ -9,6 +9,8 @@ torch.manual_seed(111)
 flex_attention = torch.compile(flex_attention, dynamic = True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+"""Dense attention transformer"""
 class ALiBi(nn.Module):
     """Implementation of ALiBi relative positional encoding from scratch"""
 
@@ -171,14 +173,14 @@ class FlexMultiHeadAttention(nn.Module):
         out = flex_attention(
             q, k, v, 
             score_mod = alibi, 
-            block_mask = block_mask      # CHANGE BACK AFTER TRYING*****
+            block_mask = block_mask     
         )
 
         out = out.transpose(1, 2).reshape(B, L, D)
         out = self.o_map(out)
         
         return out
-
+    
 
 class SimpleTransformer(nn.Module):
     def __init__(
@@ -214,157 +216,5 @@ class SimpleTransformer(nn.Module):
 
         return out
     
-    
-class SwiGLU(nn.Module):
-    def __init__(
-        self, 
-        input_dim :int, 
-        h_dim: int
-    ):
-        super().__init__()
 
-        self.input_dim = input_dim
-        self.h_dim = h_dim
-
-        self.gate_proj = nn.Linear(input_dim, h_dim)
-        self.up_proj = nn.Linear(input_dim, h_dim)
-        self.down_proj = nn.Linear(h_dim, input_dim)
-        self.act = nn.SiLU()
-
-    def forward(self, x):
-        gate = self.gate_proj(x)
-        up = self.up_proj(x)
-        swish = self.act(gate)
-        out = self.down_proj(swish * up)
-
-        return out
-
-
-class MoELayer(nn.Module):
-    def __init__(
-        self, 
-        input_dim: int, 
-        h_dim: int, 
-        num_experts: int, 
-        top_k: int
-    ):
-        super().__init__() 
-        
-        assert 1 <= top_k <= num_experts
-        self.input_dim = input_dim
-        self.h_dim = h_dim
-        self.num_experts = num_experts
-        self.top_k = top_k
-
-        # Initialize the swiglu experts
-        self.experts = nn.ModuleList([
-            SwiGLU(input_dim, h_dim) for _ in range(num_experts)
-        ])
-
-        # Router for per-expert logits
-        self.router = nn.Linear(input_dim, num_experts)
-
-
-    def forward(self, x, attn_mask = None):
-        B, L, D = x.shape
-        x_reshaped = x.reshape(B * L, D)
-
-        if attn_mask is None:
-            valid_mask = torch.ones(
-                B * L,
-                dtype=torch.bool,
-                device=x.device
-            )
-        else:
-            valid_mask = attn_mask.reshape(B * L).to(
-                device=x.device,
-                dtype=torch.bool
-            )
-
-        # Exclude padding before routing
-        valid_x = x_reshaped[valid_mask]
-
-        router_logits = self.router(valid_x)
-        router_probs = F.softmax(router_logits, dim=-1)
-
-        top_k_logits, top_k_idx = torch.topk(
-            router_logits,
-            self.top_k,
-            dim=-1
-        )
-        top_k_probs = F.softmax(top_k_logits, dim=-1)
-
-        # Full output stays zero at padding positions
-        out = torch.zeros_like(x_reshaped)
-        valid_out = torch.zeros_like(valid_x)
-
-        for expert_id_tensor in torch.unique(top_k_idx):
-            expert_id = int(expert_id_tensor.item())
-
-            selected = top_k_idx == expert_id
-            token_mask = selected.any(dim=1)
-
-            expert_input = valid_x[token_mask]
-            expert_output = self.experts[expert_id](expert_input)
-            expert_weight = top_k_probs[selected].unsqueeze(-1)
-
-            valid_out[token_mask] += expert_output * expert_weight
-
-        # Scatter valid token results back into [B*L, D]
-        out[valid_mask] = valid_out
-        out = out.reshape(B, L, D)
-
-        expert_mask = F.one_hot(
-            top_k_idx,
-            num_classes=self.num_experts
-        ).float()
-
-        f = expert_mask.mean(dim=(0, 1))
-        p = router_probs.mean(dim=0)
-        aux_loss = torch.dot(f, p) * self.num_experts
-
-        return out, aux_loss
-
-
-class MoETransformer(nn.Module):
-    def __init__(
-        self, 
-        d_model: int, 
-        num_heads: int, 
-        h_dim: int, 
-        num_experts: int, 
-        top_k: int, 
-        p_drop: float
-    ):
-        super().__init__()
-
-        self.d_model = d_model
-        self.num_heads = num_heads
-        self.h_dim = h_dim
-        self.num_experts = num_experts
-        self.top_k = top_k
-
-        # Layers
-        self.attention = FlexMultiHeadAttention(
-            d_model = self.d_model,
-            num_heads = self.num_heads
-        )
-        self.dropout1 = nn.Dropout(p = p_drop)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.moe = MoELayer(
-            input_dim = self.d_model,
-            h_dim = self.h_dim,
-            num_experts = self.num_experts,
-            top_k = self.top_k
-        )
-        self.dropout2 = nn.Dropout(p = p_drop)
-        self.norm2 = nn.LayerNorm(d_model)
-
-    def forward(self, x, attn_mask):
-
-        attn_out = self.attention(x, attn_mask)
-        x = self.norm1(x + self.dropout1(attn_out))
-        moe_out, aux_loss = self.moe(x, attn_mask)
-        out = self.norm2(x + self.dropout2(moe_out))
-
-        return out, aux_loss
+"""Linear attention transformer"""
