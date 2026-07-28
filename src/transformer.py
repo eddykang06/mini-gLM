@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.attention.flex_attention import flex_attention, create_block_mask
+from linear_attention_transformer import LinearAttentionTransformer
 
 torch.manual_seed(111)
 flex_attention = torch.compile(flex_attention, dynamic = True)
@@ -195,8 +196,8 @@ class SimpleTransformer(nn.Module):
         self.num_heads = num_heads
 
         self.attention = FlexMultiHeadAttention(
-            d_model=self.d_model,
-            num_heads=self.num_heads
+            d_model = self.d_model,
+            num_heads = self.num_heads
         )
         self.dropout1 = nn.Dropout(p=p_drop)
         self.norm1 = nn.LayerNorm(d_model)
@@ -204,7 +205,7 @@ class SimpleTransformer(nn.Module):
         self.ff = nn.Linear(d_model, d_model)
         self.relu = F.relu
 
-        self.dropout2 = nn.Dropout(p=p_drop)
+        self.dropout2 = nn.Dropout(p = p_drop)
         self.norm2 = nn.LayerNorm(d_model)
 
     def forward(self, x, attn_mask):
@@ -215,6 +216,52 @@ class SimpleTransformer(nn.Module):
         out = self.norm2(x + self.dropout2(ff_out))
 
         return out
-    
+
 
 """Linear attention transformer"""
+class LinearTransformer(nn.Module):
+    def __init__(
+        self,
+        d_model,
+        num_heads,
+        p_drop,
+        vocab_size,
+        max_seq_len
+    ):  
+        super().__init__()
+        assert d_model % num_heads == 0, "Model dimension must be a multiple of the number of heads"
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_head = self.d_model // self.num_heads
+        self.p_drop = p_drop
+        self.vocab_size = vocab_size
+        self.max_seq_len = max_seq_len
+
+        self.model = LinearAttentionTransformerLM(
+            dim = self.d_model,
+            heads = self.num_heads,
+            dim_head = self.d_head,
+            num_tokens = self.vocab_size + 2,
+            depth = 1,
+            max_seq_len = self.max_seq_len,
+            ff_dropout = 0.1,
+            attn_layer_dropout = 0.1,
+            use_rotary_emb = True,
+            return_embeddings = True
+        )
+
+    def forward(self, x, attn_mask):
+        out = self.model(x, input_mask = attn_mask)
+        return out
+
+model = LinearTransformer(
+    d_model = D,
+    num_heads = 8,
+    p_drop = 0.1,
+    vocab_size = vocab_size,
+    max_seq_len = 1000
+).to(device)
+
+model(x, attn_mask = mask).shape
+    

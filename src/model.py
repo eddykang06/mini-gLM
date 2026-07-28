@@ -10,7 +10,14 @@ class DenseGLM(nn.Module):
     """
     Model with dense attention and full FFN in each transformer block
     """
-    def __init__(self, vocab_size, num_blocks, d_model, num_heads, p_drop):
+    def __init__(
+        self, 
+        vocab_size: int, 
+        num_blocks: int, 
+        d_model: int,
+        num_heads: int,
+        p_drop: float
+    ):
         super().__init__()
         self.vocab_size = vocab_size
         self.num_blocks = num_blocks
