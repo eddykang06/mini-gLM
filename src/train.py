@@ -1,5 +1,4 @@
 """Training loop and configuration for MLM objective"""
-
 import time
 import torch
 import torch.nn as nn
@@ -7,13 +6,12 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torch.amp import autocast
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from typing import Callable
-from src.model import DenseGLM
 from src.data import DynamicBatchSampler, MLMCollator
 from wandb.sdk.wandb_run import Run
 
-"""Training loop for dense attention GLM"""
-def train_dense_glm(
+
+"""BERT-style training loop"""
+def train_glm(
     model: nn.Module,
     max_epochs: int,
     lr: float,
@@ -219,6 +217,3 @@ def train_dense_glm(
     print("Training complete!")
 
     return model
-
-
-"""Training loop for linear attention GLM"""

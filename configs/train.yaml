@@ -1,4 +1,3 @@
-# Eventually have training parameters fit in here*
-
+# Eventually put all the training loop parameters in here
 optimizer:
 

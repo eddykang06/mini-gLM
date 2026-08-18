@@ -7,4 +7,5 @@ __pycache__/
 *.py[cod]
 *$py.class
 notebooks/tokenize.ipynb
+notebooks/linear-test.ipynb
 src/moe.py
